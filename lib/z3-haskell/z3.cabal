@@ -1,0 +1,126 @@
+Name:                z3
+Version:             4.1.7
+Synopsis:            Bindings for the Z3 Theorem Prover
+Description:
+    Bindings for the (now open source!) Z3 4./x/ Theorem Prover (<https://github.com/Z3Prover/z3>).
+    .
+    * "Z3.Base.C" provides the raw foreign imports from Z3's C API.
+    .
+    * "Z3.Base" does the marshaling of values between Haskell and C,
+    and transparently handles reference counting of Z3 objects for you.
+    .
+    * "Z3.Monad" provides a convenient monadic wrapper for the common usage scenario.
+    .
+    Examples: <https://bitbucket.org/iago/z3-haskell/src/tip/examples>
+    .
+    Changelog: <https://bitbucket.org/iago/z3-haskell/src/tip/CHANGES.md>
+    .
+    Installation:
+    .
+    * /Unix-like/: Just be sure to use the standard locations for
+    dynamic libraries (\/usr\/lib) and header files (\/usr\/include),
+    or else use the --extra-lib-dirs and --extra-include-dirs Cabal flags.
+    .
+    (Hackage reports a build failure because Z3's library is missing.)
+
+Homepage:            http://bitbucket.org/iago/z3-haskell
+License:             BSD3
+License-file:        LICENSE
+Author:              Iago Abal <mail@iagoabal.eu>,
+                     David Castro <david.castro.dcp@gmail.com>
+Maintainer:          Iago Abal <mail@iagoabal.eu>
+Copyright:           2012-2015, Iago Abal, David Castro
+Category:            Math, SMT, Theorem Provers, Formal Methods, Bit vectors
+Build-type:          Simple
+Cabal-version:       >= 1.8
+
+Extra-source-files:  README.md CHANGES.md HACKING.md
+
+source-repository head
+  type:     mercurial
+  location: https://bitbucket.org/iago/z3-haskell
+
+Library
+    hs-source-dirs: src
+
+    Exposed-modules:
+
+        Z3.Base
+        Z3.Base.C
+
+        Z3.Opts
+
+        Z3.Monad
+
+    -- TODO: Add flag to compile with -Werror, Hackage doesn't like it.
+    ghc-options: -Wall
+
+    -- Ban to mtl-2.1: modify in MonadState causes <<loop>> in mtl-2.1
+    Build-depends:       base >= 4.5 && <5,
+                         containers,
+                         mtl > 2.1
+
+    Build-tools:         hsc2hs
+    Extensions:          FlexibleInstances
+                         FlexibleContexts
+                         ForeignFunctionInterface
+                         MultiParamTypeClasses
+
+    Other-extensions:    DeriveDataTypeable
+                         EmptyDataDecls
+                         GeneralizedNewtypeDeriving
+                         PatternGuards
+
+    includes:            z3.h
+
+    -- In OS X libz3 is linked statically against libgomp.
+    -- In Windows Z3 is compiled using MS C++.
+    if os(darwin) || os(windows)
+        extra-libraries:     z3
+    else
+        extra-libraries:     gomp z3 gomp
+
+Flag examples
+     Description: Build examples.
+     Default: False
+     Manual: True
+
+Executable examples
+  if flag(examples)
+    Buildable:         True
+    Build-depends:     base >=4.5,
+                       z3 >=0.4,
+                       containers,
+                       mtl >2.1
+  else
+    Buildable:         False
+
+  Hs-source-dirs:      examples
+  Main-Is:             Examples.hs
+
+  Other-Modules:       Example.Monad.Queens4
+                       Example.Monad.Queens4All
+                       Example.Monad.DataTypes
+                       Example.Monad.FuncModel
+                       Example.Monad.ToSMTLib
+                       Example.Monad.Tuple
+                       Example.Monad.Interpolation
+
+Test-suite spec
+
+    Type:               exitcode-stdio-1.0
+
+    Ghc-options:        -Wall
+
+    Extensions:         ScopedTypeVariables
+
+    Hs-source-dirs:     test
+
+    Main-is:            Spec.hs
+
+    Other-modules:      Z3.Base.Spec
+
+    Build-depends:      base >= 4.5,
+                        z3 == 4.*,
+                        hspec >= 2.1,
+                        QuickCheck >= 2.5.1

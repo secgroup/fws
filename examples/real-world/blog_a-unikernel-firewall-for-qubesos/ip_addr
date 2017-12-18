@@ -1,0 +1,13 @@
+
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN
+group default
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP
+group default qlen 1000
+    inet 10.137.1.6/32 brd 10.255.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+4: vif112.0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
+UP group default qlen 32
+    inet 10.137.2.1/32 scope global vif112.0
+       valid_lft forever preferred_lft forever

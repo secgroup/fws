@@ -1,0 +1,12 @@
+CONTROL DIAGRAM:
+
+nodes   = [qi, qf, R_dnat, R_finp, R_snat, R_fout]
+
+edges   = [ (qi, not localSrc, R_dnat), (qi, localSrc, R_snat)
+          , (R_dnat, true, R_finp), (R_snat, true, R_fout)
+          , (R_finp, localDst, qf), (R_finp, not localDst, R_snat)
+          , (R_fout, true, qf)
+          ]
+
+initial = qi
+final   = qf

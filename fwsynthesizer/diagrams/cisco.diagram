@@ -1,0 +1,6 @@
+CONTROL DIAGRAM:
+
+nodes   = [initial, final, Cisco]
+edges   = [ (initial, true, Cisco), (Cisco, true, final) ]
+initial = initial
+final   = final

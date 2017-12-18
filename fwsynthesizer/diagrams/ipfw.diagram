@@ -1,0 +1,9 @@
+CONTROL DIAGRAM:
+
+nodes   = [ qi, qf, ip_input, ip_output ]
+edges   = [ (qi, not localSrc, ip_input), (qi, localSrc, ip_output)
+          , (ip_input, localDst, qf), (ip_input, not localDst, ip_output)
+          , (ip_output, localDst, ip_input), (ip_output, not localDst, qf)
+          ]
+initial = qi
+final   = qf

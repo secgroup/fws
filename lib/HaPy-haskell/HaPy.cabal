@@ -1,0 +1,24 @@
+name:                HaPy
+version:             0.1.7
+synopsis:            Haskell bindings for Python
+description:         Call Haskell functions from Python!
+homepage:            https://github.com/sakana/HaPy
+license:             MIT
+license-file:        LICENSE
+author:              David Fisher
+maintainer:          ddf1991@gmail.com
+category:            Foreign
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:
+      Foreign.HaPy
+  other-modules:
+      Foreign.HaPy.Internal
+  extensions: TemplateHaskell
+  c-sources:           HaPy_init.c
+  build-depends:       base >= 4.5,
+                       th-lift >= 0.5 && < 0.8,
+                       th-abstraction >= 0.2.3.0,
+                       template-haskell >= 2.7.0.0

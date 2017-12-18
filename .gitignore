@@ -1,0 +1,15 @@
+dist/*
+build/*
+cabal.sandbox.config
+bin
+Setup.hs
+.cabal-sandbox/*
+lib/z3-haskell/dist/*
+lib/HaPy-haskell/dist/*
+lib/HaPy-haskell/.cabal-sandbox/*
+lib/HaPy-python/build/*
+*.swp
+*.swo
+*.pyc
+.directory
+venv

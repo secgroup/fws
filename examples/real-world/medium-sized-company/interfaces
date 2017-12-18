@@ -1,0 +1,5 @@
+# ifname	subnet	local
+eth0	172.16.2.0/24	172.16.2.1
+lo	127.0.0.0/8	127.0.0.1
+# random public ip
+ppp0	0.0.0.0/0	56.43.12.254 

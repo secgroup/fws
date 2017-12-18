@@ -1,0 +1,6 @@
+CONTROL DIAGRAM:
+
+nodes   = [initial, final, all]
+edges   = [ (initial, true, all), (all, true, final) ]
+initial = initial
+final   = final

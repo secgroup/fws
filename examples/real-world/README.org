@@ -1,0 +1,5 @@
+* Real World Policies
+This folder contains some real world policies taken from various sources
+** Sources
+1. https://github.com/diekmann/net-network
+2. https://lede-project.org/ (compiled configurations)
