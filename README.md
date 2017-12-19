@@ -94,4 +94,11 @@ $ source venv/bin/activate
 $ cd examples
 $ ./check_equivalence.sh
 ```
-
+#### Query Examples
+The script `real_world.sh` in the `examples` directory shows some query examples on real
+policies.
+```
+$ source venv/bin/activate
+$ cd examples
+$ ./real_world.sh
+```
