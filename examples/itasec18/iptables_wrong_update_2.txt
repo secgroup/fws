@@ -1,0 +1,37 @@
+### NAT rules ###
+*nat
+# ACCEPT policy in nat chains
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# R3 - Apply SNAT on connections from the LAN towards the Internet
+-A POSTROUTING -s 10.0.0.0/8 -o ext -j MASQUERADE
+
+COMMIT
+
+### Filtering rules ###
+*filter
+# DROP policy in filtering chains
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [0:0]
+
+# Allow established packets
+-A FORWARD -m state --state ESTABLISHED -j ACCEPT
+
+# NEW - Host 10.13.3.7 cannot connect to the Internet over HTTP
+-A FORWARD -s 10.13.3.7 -p tcp --dport 80 -j DROP
+
+# R2 - LAN hosts can connect to DMZ
+-A FORWARD -s 10.0.0.0/8 -d 54.230.203.0/24 -j ACCEPT
+
+# R3 - LAN hosts can connect to the Internet over HTTP/HTTPS
+-A FORWARD -s 10.0.0.0/8 -o ext -p tcp --dport 80 -j ACCEPT
+-A FORWARD -s 10.0.0.0/8 -o ext -p tcp --dport 443 -j ACCEPT
+
+# R1 - Any host can connect to the HTTPS server in the DMZ
+-A FORWARD -d 54.230.203.47 -p tcp --dport 443 -j ACCEPT
+
+COMMIT
