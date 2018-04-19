@@ -1,5 +1,27 @@
 * Real World Policies
 This folder contains some real world policies taken from various sources
+
 ** Sources
 1. https://github.com/diekmann/net-network
 2. https://lede-project.org/ (compiled configurations)
+
+** License
+The following is (c) by Chair for Network Architectures and Services, TUM,
+and is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License:
+- blog_a-unikernel-firewall-for-qubesos
+- chair_for_Network_Architectures_and_Services
+- eduroam_laptop
+- kornwall
+- medium-sized-company
+- memphis_testbed
+- random_srv
+- sqrl_shorewall
+- veroneau.net
+
+You should have received a copy of the license along with this work.
+If not, see http://creativecommons.org/licenses/by-nc-sa/3.0/.
+
+The following is in public domain
+- home-router-openwrt-lede
+
+For all other directories, no license is specified.
