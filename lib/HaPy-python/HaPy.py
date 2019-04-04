@@ -45,6 +45,7 @@ class HaskellModule:
     self.__ftype_map = { "Bool"      : c_bool
                        , "Char"      : c_char
                        , "Int"       : c_int
+                       , "Int64"     : c_longlong
                        , "Double"    : c_double
                        , "StablePtr" : c_void_p
                        , "Unit"      : None
@@ -187,7 +188,7 @@ def free_struct(struct, depth, free):
       free_struct(s, depth - 1, free)
     free(struct)
 
-# TODO: basuc type checking based on type name
+# TODO: basic type checking based on type name
 class StablePtr:
   def __init__(self, data, free):
     self.data = data

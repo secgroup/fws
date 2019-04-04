@@ -9,8 +9,6 @@ Copyright   : (c) 2017 Chiara Bodei <chiara at di.unipi.it>
               (c) 2017 Letterio Galletta <galletta at di.unipi.it>
               (c) 2017 Mauro Tempesta <tempesta at unive.it>
               (c) 2017 Lorenzo Veronese <852058 at stud.unive.it>
-
-Functions to work with cubes, multicubes and bitvectors
 -}
 
 module FWS.BVSat where
@@ -169,7 +167,7 @@ minBVSatWith get set bottom mkOp incr frm xs c mc i = do
               loop s l'
             _ -> return $ set c i $ bvAdd l incr
 
--- | min/maxBVSAT algorithms
+-- | min/maxBVSAT algorithms (LINEAR SEARCH)
 minBVSat', maxBVSat' :: MonadZ3 z3 => AST -> [AST] -> Cube -> Multicube -> Int -> z3 Cube
 minBVSat' = minBVSatWith cubeMin cubeSetMin cubeBottom mkBvult 1
 maxBVSat' = minBVSatWith cubeMax cubeSetMax cubeTop    mkBvugt (-1)

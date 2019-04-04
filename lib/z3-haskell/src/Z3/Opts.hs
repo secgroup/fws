@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XCPP #-}
 
 -- |
 -- Module    : Z3.Opts
@@ -50,7 +51,16 @@ import qualified Z3.Base as Base
 
 import           Data.Fixed  ( Fixed )
 import qualified Data.Fixed as Fixed
-import           Data.Monoid ( Monoid(..) )
+
+#if MIN_VERSION_base(4,9,0)
+-- Data.Semigroup was added in base-4.9
+import qualified Data.Semigroup as Sem
+#endif
+#if !(MIN_VERSION_base(4,8,0))
+-- starting with base-4.8, Monoid is rexported from Prelude
+import Data.Monoid ( Monoid (..) )
+#endif
+
 
 ---------------------------------------------------------------------
 -- Configuration
@@ -58,9 +68,27 @@ import           Data.Monoid ( Monoid(..) )
 -- | Z3 configuration.
 newtype Opts = Opts [Opt]
 
+#if MIN_VERSION_base(4,9,0)
+instance Sem.Semigroup Opts where
+  (<>) = optsAppend
+#endif
+
 instance Monoid Opts where
   mempty = Opts []
-  mappend (Opts ps1) (Opts ps2) = Opts (ps1++ps2)
+
+#if MIN_VERSION_base(4,11,0)
+-- starting with base-4.11, mappend definitions are redundant;
+-- at some point `mappend` will be removed from `Monoid`
+#elif MIN_VERSION_base(4,9,0)
+  mappend = (Sem.<>)
+#else
+-- base < 4.9
+-- prior to GHC 8.0 / base-4.9 where no `Semigroup` class existed
+  mappend = optsAppend
+#endif
+
+optsAppend :: Opts -> Opts -> Opts
+optsAppend (Opts ps1) (Opts ps2) = Opts (ps1++ps2)
 
 singleton :: Opt -> Opts
 singleton o = Opts [o]

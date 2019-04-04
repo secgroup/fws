@@ -1,0 +1,16 @@
+# Checks for non-determinism in the policy
+
+table_style unicode
+
+ipt = load_policy(iptables, "policies-update/iptables_nondet.rules", "policies/interfaces_aliases.conf")
+
+echo "DNATed packets"
+synthesis(ipt)
+  project (srcIp, srcPort, dnatIp, dstIp, dstPort, protocol, state)    
+  in forward where not (srcIp = internal) and dstIp = ext_ip and dstPort = 443
+
+echo "non-deterministically dropped packets"
+nondet(ipt)
+  project (srcIp, srcPort, dnatIp, dnatPort, dstIp, dstPort, protocol, state)
+  in forward
+

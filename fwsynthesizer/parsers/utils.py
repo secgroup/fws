@@ -4,7 +4,7 @@ import re
 import argparse
 
 from ipaddr import IPv4Address, IPv4Network
-from fwsynthesizer.ipaddr_ext import IPv4Range
+from fwsynthesizer.utils.ipaddr_ext import IPv4Range
 
 from parsec import *
 
@@ -140,10 +140,11 @@ between     = lambda o,c,p: o >> p << c
 
 Negate = namedtuple('Negate', ['value'])
 Port = namedtuple('Port', ['value'])
+PortRange = namedtuple('PortRange', ['bottom', 'top'])
 
 octet_regex  = '[0-9]{1,3}'
 addr_regex   = '(:?{0}\.){{3}}{0}'.format(octet_regex)
-subnet_regex = '(:?{0}\.){{3}}0\/[0-9]{{1,2}}'.format(octet_regex)
+subnet_regex = '(:?{0}\.){{3}}{0}\/[0-9]{{1,2}}'.format(octet_regex)
 range_regex  = '{0}\s*-\s*{0}'.format(addr_regex)
 port_regex   = '[0-9]{1,5}'
 
@@ -151,6 +152,7 @@ ip_addr       = regex(addr_regex).parsecmap(IPv4Address)
 ip_subnet     = regex(subnet_regex).parsecmap(IPv4Network)
 ip_range      = regex(range_regex).parsecmap(IPv4Range)
 port          = regex(port_regex).parsecmap(Port)
+port_range    = (regex(port_regex) + (string('-') >> regex(port_regex))).parsecmap(lambda p: PortRange(*p))
 negate        = (lambda p: (optional(regex("!\s*")) + p)
                  .parsecmap(lambda (n, s): Negate(s) if n else s))
 comment       = symbol("#") >> until_endl
@@ -166,11 +168,13 @@ alternative = lambda *ss: reduce(try_choice, map(symbol, ss))
 def file_to_dict(path):
     with open(path) as f:
         return { p[0]: p[1:] for p in
-                (re.split("\s+",line.strip()) for line in f if line.strip() != '' and not line.startswith('#') ) }
+                 (re.split("\s+",line.strip()) for line in f
+                  if line.strip() != '' and not line.startswith('#') ) }
 
 def protocols():
     "Dict from protocol name to protocol number"
     return { name: proto[0] for name, proto in file_to_dict('/etc/protocols').items() }
+
 
 def services():
     "Dict from service name to port number"

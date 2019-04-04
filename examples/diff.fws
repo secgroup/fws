@@ -1,0 +1,18 @@
+echo "DIFFERENCE"
+echo "=========="
+echo ""
+
+ipt = load_policy(iptables, "policies/iptables.rules", "policies/interfaces_aliases.conf")
+
+first = load_policy(iptables, "policies-update/iptables_new_rule.rules", "policies/interfaces_aliases.conf")
+
+up = load_policy(iptables, "policies-update/iptables_new_rule_correct.rules", "policies/interfaces_aliases.conf")
+
+echo "First Update"
+equivalence(ipt, first) in forward
+
+echo ""
+echo "Correct Update"
+diff(ipt, up) project (srcIp, srcPort, snatIp, dstIp, dstPort, protocol, state)
+  in forward where protocol = tcp and dstPort = 80
+

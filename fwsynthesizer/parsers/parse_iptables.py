@@ -8,7 +8,7 @@ from utils import *
 import fwsynthesizer
 
 from ipaddr import IPv4Address, IPv4Network
-from fwsynthesizer.ipaddr_ext import IPv4Range
+from fwsynthesizer.utils.ipaddr_ext import IPv4Range
 
 ################################################################################
 # CONFIG
@@ -54,7 +54,8 @@ iptables_args = argument_parser(
     state       = Argument('--(state|ctstate)'),
     target      = Argument('-(j|-jump)'),
     goto_target = Argument('-(g|-goto)'),
-    nat         = Argument('--to-(source|destination|ports?)', '--to')
+    nat         = Argument('--to-(source|destination|ports?)', '--to'),
+    src_mac     = Argument('--mac-source', negated=True)
 )
 
 @generate
@@ -76,11 +77,11 @@ PROTOCOLS = protocols()
 PORTS     = services()
 
 CHAIN_NAMES = {
-    ('PREROUTING', 'mangle'): 'PreM',
+    ('PREROUTING', 'mangle'): ['PreM', 'PreM1'],
     ('PREROUTING', 'nat'): 'PreN',
     ('FORWARD', 'mangle'): 'FwdM',
     ('FORWARD', 'filter'): 'FwdF',
-    ('INPUT', 'mangle'): 'InpM',
+    ('INPUT', 'mangle'): ['InpM', 'ImpM1'],
     ('INPUT', 'nat'): 'InpN',
     ('INPUT', 'filter'): 'InpF',
     ('OUTPUT', 'mangle'): 'OutM',
@@ -166,6 +167,9 @@ def args_to_rule(args, interfaces):
 
     append_condition("srcIp", "==", args['src_ip'], mapper=lambda s: [ r.strip() for r in s.split(',') ])
     append_condition("dstIp", "==", args['dst_ip'], mapper=lambda s: [ r.strip() for r in s.split(',') ])
+
+    # Only source MAC is supported by iptables
+    append_condition("srcMac", "==", args['src_mac'])
 
     if args['protocol'] and args['protocol'] != 'ALL':
         append_condition("protocol", "==", args['protocol'], mapper=protocol_number)
@@ -266,24 +270,28 @@ def tables_to_rules(tables, interfaces):
         if len(c['rules']) > 0:
             rules = filter(lambda r: r is not None, c['rules'])
 
-            output += 'CHAIN {}{}:\n'.format(chain_name(chain, table), " "+c['dp'] if c['dp'] != "-" else "")
-            output += '\n'.join('\n'.join(rule) for rule in rules)
+            names = chain_name(chain, table)
+            # If we have multiple nodes on the same chain, chain_name returns a list
+            if type(names) != list: names = [names]
+            for cname in names:
+                output += 'CHAIN {}{}:\n'.format(cname, " "+c['dp'] if c['dp'] != "-" else "")
+                output += '\n'.join('\n'.join(rule) for rule in rules)
 
-            # If rules are empyt put a single default rule:
-            #  RETURN if we are inside a user defined chain
-            #  dp where dp in [ACCEPT, DROP] if we are inside a default chain
-            if not rules:
-                if chain not in [ d for d,_ in CHAIN_NAMES ]:
-                    output += '(true, RETURN)'
-                else:
-                    output += '(true, {})'.format(c['dp'])
+                # If rules are empyt put a single default rule:
+                #  RETURN if we are inside a user defined chain
+                #  dp where dp in [ACCEPT, DROP] if we are inside a default chain
+                if not rules:
+                    if chain not in [ d for d,_ in CHAIN_NAMES ]:
+                        output += '(true, RETURN)'
+                    else:
+                        output += '(true, {})'.format(c['dp'])
 
-            # If the strict protocols mode is active the default policy
-            # ACCEPT accepts only tcp, udp and icmp packets
-            if STRICT_PROTOCOLS:
-                output += '\n(not (protocol == 6 || protocol == 17 || protocol == 1), DROP)' \
-                          if c['dp'] == 'ACCEPT' else ''
-            output += '\n\n'
+                # If the strict protocols mode is active the default policy
+                # ACCEPT accepts only tcp, udp and icmp packets
+                if STRICT_PROTOCOLS:
+                    output += '\n(not (protocol == 6 || protocol == 17 || protocol == 1), DROP)' \
+                              if c['dp'] == 'ACCEPT' else ''
+                output += '\n\n'
 
     return output
 

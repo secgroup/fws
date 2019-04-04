@@ -1,18 +1,21 @@
 CONTROL DIAGRAM:
 
 nodes   = [PreM, PreN, FwdM, FwdF, InpM, InpN, InpF
-          , OutM, OutN, OutF, PostM, PostN, Initial, Final 
+          , OutM, OutN, OutF, PostM, PostN, Initial, Final
+          , PreM1, InpM1
           ]
 
 edges   = [ (Initial, not localSrc, PreM),  (Initial, localSrc,     OutM)
           , (PreM,    true,         PreN),  (PreN,    localDst,     InpM)
           , (PreN,    not localDst, FwdM),  (FwdF,    true,         PostM)
-          , (OutF,    localDst,     InpM),  (OutF,    not localDst, PostM)
-          , (PostM,   true,         PostN), (PostN,   true,         Final)
+          , (OutF,    true, PostM)
+          , (PostM,   true,         PostN)
+          , (PostN,   not localDst, Final), (PostN,   localDst,     PreM1)
+          , (PreM1,   true,         InpM1), (InpM1,   true,         InpF)
           , (InpM,    true,         InpN),  (InpN,    true,         InpF)
           , (InpF,    true,         Final), (OutM,    true,         OutN)
           , (OutN,    true,         OutF),  (FwdM,    true,         FwdF)
-          ] 
+          ]
 
 initial = Initial
 final   = Final

@@ -1,0 +1,27 @@
+echo "EQUIVALENCE"
+echo "==========="
+echo ""
+echo "policies/iptables.rules"
+echo "policies-update/ipfw.sh"
+echo ""
+
+ipt = load_policy(iptables, "policies/iptables.rules", "policies/interfaces_aliases.conf")
+
+ipfw = load_policy(ipfw, "policies-update/ipfw.sh", "policies/interfaces_aliases.conf")
+
+echo "# Requirement 1"
+equivalence(ipt, ipfw) in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+echo "# Requirement 2"
+equivalence(ipt, ipfw) in forward where
+  dnatIp in (web_server, ssh_server) and state = NEW
+
+echo "# Requirement 3,4"
+equivalence(ipt, ipfw) in forward where
+  srcIp = internal and not ( dnatIp = internal ) and state = NEW
+
+echo "# Requirement 5"
+equivalence(ipt, ipfw) in output where
+  srcIp = ext_ip and state = NEW

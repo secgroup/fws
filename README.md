@@ -27,78 +27,69 @@ source venv/bin/activate
 
 the executable is `fws`.
 
-### Usage
-```
-usage: fws [-h]
-           FRONTEND {synthesis,implication,equivalence,diff,convert,query} ...
-
-FireWall Synthesizer - Language-independent Synthesis of Firewall Policies
-
-positional arguments:
-  FRONTEND              Frontend name or diagram file (frontends: cisco, ipfw,
-                        iptables, pf)
-  {synthesis,implication,equivalence,diff,convert,query}
-                        Subcommands
-    synthesis           Syntesize a specification
-    implication         Check for policy implication
-    equivalence         Check for policy equivalence
-    diff                Synthesize difference between two firewalls
-    convert             Convert a configuration to the generic language
-    query               Display the rules that affect the selected packets
-
-optional arguments:
-  -h, --help            show this help message and exit
-```
-
 ### Usage Examples
 #### Policy Analysis
+  * Loading a policy
+    ```
+    $ fws
+    FWS> ipt = load_policy(iptables, "examples/policies/iptables.rules", "examples/policies/interfaces_aliases.conf")
+    ```
   * Synthesizing the entire specification
     ```
-    $ fws iptables synthesis -i examples/policies/interfaces -f examples/policies/iptables.rules
+    FWS> synthesis(ipt)
     ```
   * Checking the equivalence of two policies
     ```
-    $ fws iptables equivalence -i examples/policies/interfaces \
-                               -f examples/policies/iptables.rules \
-                               -s examples/policies-update/iptables_new_rule.rules
+    FWS> ipt2 = load_policy(iptables, "examples/policies-update/iptables_new_rule.rules", "examples/policies/interfaces_aliases.conf")
+    FWS> equivalence(ipt, ipt2)
     ```
   * Getting *related rules*
     ```
-    $ fws iptables query -i examples/policies/interfaces \
-                         -f examples/policies-update/iptables_new_rule.rules \
-                         -q "srcIp == 10.0.1.22 && protocol == tcp && dstPort == 80 && state == NEW"
+    FWS> related(ipt2) where srcIp = 10.0.1.22 and protocol = tcp and dstPort = 80 and state = NEW
     ```
   * Getting the difference for the connections to port `80`
     ```
-    $ fws iptables diff -i examples/policies/interfaces \
-                        -f examples/policies/iptables.rules \
-                        -s examples/policies-update/iptables_new_rule_correct.rules \
-                        -q "protocol == tcp && dstPort == 80" --forward
+    FWS> ipt3 =  load_policy(iptables, "examples/policies-update/iptables_new_rule_correct.rules", "examples/policies/interfaces_aliases.conf")
+    FWS> diff(ipt, ipt3) in forward where protocol = tcp and dstPort = 80
     ```
+  
+  Each table can be projected to show only the columns you are interested in
+  ```
+  synthesis(ipt)
+   project (srcIp, srcPort, dstIp, dstPort, protocol)
+   in forward where
+    ( (srcIp = lan0 and dstIp = lan1) or
+      (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+  ```
+
+  FWS can be used in non-iteractive mode giving it an fws script as the first command line argument
+  ```
+  $ fws script.fws
+  ```
 
 #### Policy Verification
-The script `run_examples.sh` in the `examples` directory shows how the tool
+The script `examples.fws` in the `examples` directory shows how the tool
 can be used to verify the fulfillment of the requirements of the firewall and
 to spot possible differences in the `iptables`, `ipfw` and `pf` configurations.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ ./run_examples.sh
+$ fws examples.fws
 ```
 #### Policy Equivalence
-The script `check_equivalence.sh` in the `examples` directory shows how the equivalence
+The script `equivalence.fws` in the `examples` directory shows how the equivalence
 feature of the tool can be used to check whether two policies (for `iptables` and `ipfw`)
 are equivalent for the requirements of the firewall.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ ./check_equivalence.sh
+$ fws equivalence.fws
 ```
 #### Query Examples
-The script `real_world.sh` in the `examples` directory shows some query examples on real
+The script `real_world.fws` in the `examples` directory shows some query examples on real
 policies.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ ./real_world.sh
+$ fws real_world.fws
 ```

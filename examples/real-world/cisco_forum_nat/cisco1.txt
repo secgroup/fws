@@ -1,0 +1,60 @@
+!
+!
+!
+interface Ethernet0/0
+ip address 10.10.10.10 255.255.255.240
+ip nat outside
+ip virtual-reassembly
+half-duplex
+!
+interface FastEthernet0/0
+ip address 192.168.20.200 255.255.255.0
+ip nat inside
+ip virtual-reassembly
+speed auto
+!
+interface FastEthernet0/0.1
+encapsulation dot1Q 11
+ip address 11.0.0.1 255.255.255.0
+ip nat inside
+ip virtual-reassembly
+no snmp trap link-status
+!
+interface FastEthernet0/0.2
+encapsulation dot1Q 10
+ip address 192.168.1.254 255.255.255.0
+no snmp trap link-status
+!
+interface Serial1/0
+no ip address
+shutdown
+no fair-queue
+!
+ip route 0.0.0.0 0.0.0.0 10.10.10.1
+ip route 11.0.0.0 255.255.255.0 192.168.20.254
+!
+no ip http server
+no ip http secure-server
+!
+ip nat inside source list 1 interface Ethernet0/0 overload
+!
+!
+access-list 1 permit 11.0.0.0 0.0.0.255
+access-list 1 permit 192.168.20.0 0.0.0.255
+!
+!
+control-plane
+!
+!
+line con 0
+line aux 0
+line vty 0 4
+exec-timeout 5 0
+privilege level 15
+logging synchronous
+login local
+transport input telnet
+transport output telnet
+!
+end
+

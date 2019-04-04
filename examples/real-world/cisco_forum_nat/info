@@ -1,0 +1,3 @@
+https://community.cisco.com/t5/routing/nat-internal-address-to-external-ip/td-p/2125481
+
+Notes: slightly modified to have the gateway lan subnet GigabitEthernet0/0 to include the 10.10.10.1 ip

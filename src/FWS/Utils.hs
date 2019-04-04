@@ -21,6 +21,7 @@ module FWS.Utils where
 import Control.Monad
 import Control.Monad.State
 import Data.Bits
+import Data.Char
 import Data.List
 import Data.Maybe
 import Text.Parsec
@@ -142,6 +143,20 @@ ip = try star <|> try range <|> subnet
                       when (length addr /= 4) $ fail "Invalid IP Address"
                       return $ fromDotDecimal addr
         mask v s = (shift (shift v (-s)) s, v .|. 2^s-1)
+
+-- | Parser for MAC addresses
+mac :: Parsec String () (Interval Integer)
+mac = try star <|> try range <|> try single
+  where star    = char '*' >> return (I 0 $ 2^48-1)
+        range   = I <$> sixhex <*> (char '-' *> sixhex)
+        single  = sixhex >>= \x ->return $ I x x
+        sixhex  = do addr <- sepBy hexByte (char ':')
+                     when (length addr /= 6) $ fail "Invalid MAC Address"
+                     return $ fromDotDecimal addr
+        hexByte = parseHex <$> ((:) <$> hexchar <*> ((:) <$> hexchar <*> pure []))
+        hexchar = oneOf $ ['a'..'f'] ++ ['A'..'F'] ++ ['0'..'9']
+        parseHex = fromIntegral . foldl' f 0
+         where f n c = 16*n + (fromJust $ elemIndex (toUpper c) "0123456789ABCDEF")
 
 -- | Natural number parser
 natural :: Parsec String () Integer

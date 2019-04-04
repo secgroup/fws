@@ -8,9 +8,6 @@ Copyright   : (c) 2017 Chiara Bodei <chiara at di.unipi.it>
               (c) 2017 Letterio Galletta <galletta at di.unipi.it>
               (c) 2017 Mauro Tempesta <tempesta at unive.it>
               (c) 2017 Lorenzo Veronese <852058 at stud.unive.it>
-
-Datatype and predicates to work with IPs as bitvectors and
-conversion to Z3 AST
 -}
 
 module FWS.BVPredicates where
@@ -38,10 +35,12 @@ data BVFormula = Lt !Term !Term
                | LTrue
                | LFalse
                | Exists ![Term] !BVFormula
+               | Forall ![Term] !BVFormula
                deriving (Show, Eq, Ord)
 
 -- | Accepted sorts for bitvectors
-data BVSort = BV32
+data BVSort = BV48
+            | BV32
             | BV16
             | BV8
             | BV1
@@ -63,6 +62,10 @@ matchIP term addr = matchIPInterval term $ parseIP addr
 matchIPInterval :: Term -> Interval Integer -> BVFormula
 matchIPInterval ip@(Var BV32 _) int = matchGeneric ip int
 matchIPInterval _ _ = error "matchIPInterval: Invalid Term"
+
+matchMACInterval :: Term -> Interval Integer -> BVFormula
+matchMACInterval mac@(Var BV48 _) int = matchGeneric mac int
+matchMACInterval _ _ = error "matchMACInterval: Invalid Term"
 
 -- | Predicate to match the given Port range
 matchPort :: Term -> Interval Integer -> BVFormula
@@ -110,9 +113,11 @@ formulaVarsCount formula = case formula of
   LTrue      -> mempty
   LFalse     -> mempty
   Exists _ b -> formulaVarsCount b
+  Forall _ b -> formulaVarsCount b
 
 -- | Size of the bitvector sort
 bvSortSize :: BVSort -> Int
+bvSortSize BV48 = 48
 bvSortSize BV32 = 32
 bvSortSize BV16 = 16
 bvSortSize BV8  = 8
@@ -124,6 +129,7 @@ bvSizeSort 1 = BV1
 bvSizeSort 8 = BV8
 bvSizeSort 16 = BV16
 bvSizeSort 32 = BV32
+bvSizeSort 48 = BV48
 
 -- | Convert a Formula to a Z3 Predicate.
 --   The variables can be specified or are extracted from the formula.
@@ -162,3 +168,5 @@ z3Predicate formula mVars = do
         LFalse     -> mkFalse
         Exists a b -> do apps <- mapM (toApp <=< (flip z3Term vars)) a
                          mkExistsConst [] apps =<< loop b vars
+        Forall a b -> do apps <- mapM (toApp <=< (flip z3Term vars)) a
+                         mkForallConst [] apps =<< loop b vars

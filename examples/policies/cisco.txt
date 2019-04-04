@@ -1,0 +1,51 @@
+!--- (NAT) Interfaces
+! ext
+interface GigabitEthernet1
+  ip address 172.16.0.254 255.255.255.0
+  ip nat outside
+  ip access-group 120 out 
+  ip access-group 130 in
+  no shutdown
+! lan0
+interface GigabitEthernet2
+  ip address 10.0.1.1 255.255.255.0
+  ip nat inside
+  no shutdown
+! lan1
+interface GigabitEthernet3
+  ip address 10.0.2.1 255.255.255.0
+  ip nat inside
+  no shutdown
+
+!--- Default Route
+ip route 0.0.0.0 0.0.0.0 172.16.0.1
+ 
+!--- NAT rules --- 
+!--- Requirement 2: Redirect incoming SSH and HTTPS connections to  
+!--- hosts 10.0.2.15 and 10.0.1.15 (DNAT)
+ip nat inside source static tcp 10.0.2.15 22 172.16.0.254 22 extendable
+ip nat inside source static tcp 10.0.1.15 443 172.16.0.254 443 extendable
+
+!--- Requirement 4: Connections towards the Internet exit with source 
+!--- address 172.16.0.254 (SNAT)
+ip nat inside source list 10 interface GigabitEthernet1 overload
+access-list 10 permit 10.0.0.0 0.0.255.255
+
+!--- Filtering rules --- 
+!--- ACLs are default drop in IOS. Requirement 5 does not apply here
+!--- Requirement 1: Allow arbitrary traffic between internal networks.
+!--- This is the default if we do not specify an ACL!
+
+!--- Requirement 3: Allow HTTP/HTTPS outgoing traffic. This is after SNAT!
+access-list 120 permit tcp any any established
+access-list 120 permit tcp host 172.16.0.254 any eq 80 
+access-list 120 permit tcp host 172.16.0.254 any eq 443 
+
+!--- Requirement 2: Allow SSH/HTTPS incoming traffic to the corresponding hosts.
+!--- This is before DNAT!
+access-list 130 permit tcp any any established
+access-list 130 permit tcp any host 172.16.0.254 eq 22
+access-list 130 permit tcp any host 172.16.0.254 eq 443
+!
+end
+

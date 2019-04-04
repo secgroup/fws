@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from textx.metamodel import metamodel_from_str
 from textx.exceptions import TextXSyntaxError
-from ipaddr import IPv4Network, NetmaskValueError
+from ipaddr import IPv4Address, IPv4Network, NetmaskValueError
 
 from utils import protocols, services
 
@@ -57,6 +57,7 @@ class Subnet(object):
         try:
             return IPv4Network(addr, strict=False).with_prefixlen
         except NetmaskValueError:
+            # TODO
             # Some configurations contain particular hostmask that are
             # rejected by the ipaddr module, e.g. `0.0.255.0`.
             # I'm not sure if they are correct, for now I reverse them
@@ -78,9 +79,12 @@ class StandardAclRule(object):
         self.action = action
         self.src_ip = src_ip
 
-    def translate(self):
+    def conds(self):
         cond = 'true' if self.src_ip == 'any' else 'srcIp == {}'.format(self.src_ip)
-        return '({}, {})'.format(cond, translate_action(self.action))
+        return cond
+
+    def translate(self):
+        return '({}, {})'.format(self.conds(), translate_action(self.action))
 
 
 class ExtendedAclRule(object):
@@ -95,7 +99,7 @@ class ExtendedAclRule(object):
         self.dst_port = dst_port
         self.established = established
 
-    def translate(self):
+    def conds(self):
         conds = []
         if self.proto != 'ip':
             conds.append('protocol == {}'.format(protocols[self.proto]))
@@ -109,7 +113,10 @@ class ExtendedAclRule(object):
             conds.append('dstPort == {}'.format(port_expr(self.dst_port)))
         if self.established:
             conds.append('state == 1')
-        return '({}, {})'.format('true' if len(conds) == 0 else ' && '.join(conds),
+        return 'true' if len(conds) == 0 else ' && '.join(conds)
+
+    def translate(self):
+        return '({}, {})'.format(self.conds(),
                                  translate_action(self.action))
 
 class StandardAcl(object):
@@ -117,10 +124,11 @@ class StandardAcl(object):
         self.parent = parent
         self.rules = rules
 
-    def translate(self, acls):
+    def translate(self, acls, acl_conds):
         for r in self.rules:
             if r.__class__.__name__ != 'Remark':
                 acls[r.id].append(r.translate())
+                acl_conds[r.id].append(r.conds())
 
 
 class NamedAcl(object):
@@ -131,6 +139,7 @@ class NamedAcl(object):
 
     def translate(self, acls):
         acls[self.name] = [r.translate() for r in self.rules if r.__class__.__name__ != 'Remark']
+        acl_conds[self.name] = [r.conds() for r in self.rules if r.__class__.__name__ != 'Remark']
 
 
 class Interface(object):
@@ -140,25 +149,50 @@ class Interface(object):
         self.settings = settings
         self.subnet = None
         self.acls = []
+        self.nat = None
         for s in self.settings:
             if s.__class__.__name__ == 'Subnet':
                 self.subnet = s
             elif s.__class__.__name__ == 'IfaceAcl':
                 self.acls.append((s.acl, s.dir))
+            elif s.__class__.__name__ == 'IfaceNat':
+                self.nat = s.direction
 
     def __str__(self):
         if self.subnet is not None:
-            return '{}\nSubnet: {}/{}\nAcls: {}'.format(
-                self.name, self.subnet.ip,self.subnet.mask, self.acls)
+            return '{}\nSubnet: {}/{}\nNAT: {}\nAcls: {}'.format(
+                self.name, self.subnet.ip, self.subnet.mask, self.nat, self.acls)
         return self.name
+
+    def __repr__(self):
+        return self.__str__()
 
 class Remark(object):
     def __init__(self, parent, comment):
         self.parent = parent
         self.comment = comment
 
+class Nat(object):
+    def __init__(self, parent, direction, list_id, if_name, proto, src_ip,src_port,dst_ip,dst_port):
+        self.parent = parent
+        self.direction = direction
+        self.list_id  = list_id
+        self.if_name  = if_name
+        self.proto    = proto
+        self.src_ip   = src_ip
+        self.src_port = src_port
+        self.dst_ip   = dst_ip
+        self.dst_port = dst_port
+
+class Route(object):
+    def __init__(self, parent, subnet, gateway):
+        self.parent = parent
+        self.subnet = subnet
+        self.gateway = gateway
+
+
 classes = [
-    Subnet, StandardAclRule, ExtendedAclRule, StandardAcl, NamedAcl, Interface, Remark
+    Subnet, StandardAclRule, ExtendedAclRule, StandardAcl, NamedAcl, Interface, Remark, Nat, Route
 ]
 
 ################################################################################
@@ -176,7 +210,7 @@ Config:
 ;
 
 ConfigBlock:
-    StandardAcl | NamedAcl | Interface
+    StandardAcl | NamedAcl | Interface | Nat | Route | End
 ;
 
 /*
@@ -306,7 +340,7 @@ IfaceName:
 ;
 
 IfaceSettings:
-    IfaceSubnet | IfaceAcl | /.*/
+    IfaceSubnet | IfaceAcl | IfaceNat | /.*/
 ;
 
 IfaceSubnet:
@@ -324,6 +358,34 @@ Direction:
 IfaceAcl:
     'ip' 'access-group' acl=AclId dir=Direction
 ;
+
+IfaceNat:
+    'ip' 'nat' direction=NatDirection
+;
+
+NatDirection:
+    'inside' | 'outside'
+;
+
+IfName:
+    /[a-zA-z0-9\-_\/]+/
+;
+
+Nat:
+    'ip' 'nat' direction=NatDirection 'source'
+      ( (('list' list_id=INT)? 'interface' if_name=IfName 'overload'?)
+      | ('static' proto=Protocol? src_ip=Ip src_port=Port?
+                                  dst_ip=Ip dst_port=Port? 'extendable'?))
+;
+
+Route:
+   'ip' 'route' subnet=Endpoint gateway=Ip
+;
+
+End:
+    'end'
+;
+
 '''
 
 mm = metamodel_from_str(grammar, classes=classes, auto_init_attributes=False)
@@ -331,9 +393,17 @@ mm = metamodel_from_str(grammar, classes=classes, auto_init_attributes=False)
 ################################################################################
 # CONFIG PARSING
 
+def strip_comments(contents):
+    return re.sub("\!.*\n", "!\n", contents)
+
 def parse_file(contents):
     acls = defaultdict(list)
+    acl_conds = defaultdict(list)
     interfaces = {}
+    nats = []
+    routes = []
+
+    contents = strip_comments(contents)
 
     for block in read_blocks(contents):
         try:
@@ -341,45 +411,147 @@ def parse_file(contents):
             for b in m.conf_blocks:
                 if b.__class__.__name__ == 'Interface':
                     interfaces[b.name] = b
+                elif b.__class__.__name__ == 'Nat':
+                    nats.append(b)
+                elif b.__class__.__name__ == 'Route':
+                    routes.append(b)
+                elif b == 'end':
+                    pass
                 else:
-                    b.translate(acls)
-        except TextXSyntaxError:
+                    b.translate(acls, acl_conds)
+        except TextXSyntaxError as e:
+            print "<!> Warning: unsupported syntax. Skipping... {}".format(e)
             pass
 
-    return interfaces, acls
+    return interfaces, acls, acl_conds, nats, routes
 
-def convert_file(interfaces, acls):
-
+def convert_file(interfaces, acls, acl_conds, nats, routes):
     used_acls = set()
-    output = "CHAIN Cisco DROP:\n"
+    output = ""
 
-    if all(not ifc.acls for _, ifc in interfaces.items()):
-        # If there is no ACL the router accepts all packets
-        output += "(true, ACCEPT)\n"
-        return output
+    local_addresses = [ ifc.subnet.ip for _,ifc in interfaces.items() if ifc.subnet ]
 
-    for _, ifc in interfaces.items():
-        if ifc.subnet:
+    # Get default route
+    ifcs = filter(lambda (n,ifc): ifc.subnet, interfaces.items())
+    try:
+        default_route = [r for r in routes if r.subnet.mask == '0.0.0.0'][0] # Only the first one
+        for _,ifc in ifcs:
+            if IPv4Address(default_route.gateway) in IPv4Network(str(ifc.subnet)):
+                ifc.subnet.mask = '0.0.0.0'
+                break
+        else:
+            print "<!> Warning: Cannot find interface for the default gateway!"
+    except IndexError:
+        print "<!> Warning: no default route!"
+
+    ifcs = sorted(ifcs, key=lambda (_,ifc): IPv4Network(ifc.subnet).numhosts)
+
+    # Interfaces switch/case
+    for chain, acldir, variable in [('InF', 'in', 'srcIp'), ('OutF', 'out', 'dstIp')]:
+        output += "CHAIN {} DROP:\n".format(chain)
+        for _, ifc in ifcs:
             if ifc.acls:
-                for name, direction in ifc.acls:
+                dir_acls = filter(lambda (n,d): d == acldir, ifc.acls)
+                for name, direction in dir_acls:
                     if name not in acls:
-                        # raise RuntimeError("ACL `{}' definition not found!".format(name))
-                        output += "(srcIp == {0} || dstIp == {0}, ACCEPT)\n".format(ifc.subnet)
+                        output += "({} == {}, ACCEPT)\n".format(variable, ifc.subnet)
                     else:
-
                         output += "({} == {}, GOTO(ACL_{}))\n".format(
-                            'srcIp' if direction == 'in' else 'dstIp',
-                            ifc.subnet, name)
+                            variable, ifc.subnet, name)
                         used_acls.add(name)
             else:
-                output += "(srcIp == {0} || dstIp == {0}, ACCEPT)\n".format(ifc.subnet)
+                output += "({} == {}, ACCEPT)\n".format(variable, ifc.subnet)
+        output += "\n"
 
-    output += "\n"
+    # NATs
+    inside_subnets = [ ifc.subnet for _,ifc in ifcs if ifc.nat and ifc.nat == 'inside' ]
+    outside_subnets = [ ifc.subnet for _,ifc in ifcs if ifc.nat and ifc.nat == 'outside' ]
+
+    nats_inside = [ n for n in nats if n.direction == 'inside' ]
+    nats_outside = [ n for n in nats if n.direction == 'outside' ]
+
+    rules_inside = []
+    rules_outside = []
+
+    def nat_match(nat, outside=False):
+        if outside:
+            # TODO: support NAT outside
+            raise RuntimeError("NAT outside is not currently implemented.")
+
+        # not static
+        if nat.list_id:
+            acl = acl_conds[nat.list_id]
+            cond_in = [' || '.join('({})'.format(c) for c in acl)]
+            cond_in.append('not({})'.format(
+                ' || '.join('(dstIp == {})'.format(s)
+                            for s in inside_subnets + map(lambda x: x.ip, outside_subnets))))
+            target_ip = interfaces[nat.if_name].subnet.ip
+            target_in = 'NAT(Id, {})'.format(target_ip)
+            rules_inside.append('({}, {})'.format(' && '.join(cond_in), target_in))
+            rules_outside.insert(0,'(state == 1, CHECK-STATE(->))')
+        # static
+        else:
+            conds_in = []
+            conds_out = []
+            target_in = 'NAT(Id, {}:{})'.format(
+                nat.dst_ip, 'Id' if nat.dst_port == nat.src_port else nat.dst_port)
+            target_out = 'NAT({}:{}, Id)'.format(
+                nat.src_ip, 'Id' if nat.dst_port == nat.src_port else nat.src_port)
+            if nat.proto:
+                conds_in.append('protocol == {}'.format(nat.proto))
+                conds_out.append('protocol == {}'.format(nat.proto))
+            conds_in.append('srcIp == {}'.format(nat.src_ip))
+            conds_out.append('dstIp == {}'.format(nat.dst_ip))
+            if nat.proto and nat.src_port and nat.dst_port:
+                conds_in.append('srcPort == {}'.format(nat.src_port))
+                conds_out.append('dstPort == {}'.format(nat.dst_port))
+            conds_in.append('not({})'.format(
+                ' || '.join('(dstIp == {})'.format(s)
+                            for s in inside_subnets + map(lambda x: x.ip, outside_subnets))))
+            conds_out.append('not({})'.format(
+                ' || '.join('(srcIp == {})'.format(s)
+                            for s in inside_subnets + map(lambda x: x.ip, outside_subnets))))
+            rules_inside.append('({}, {})'.format(' && '.join(conds_in), target_in))
+            rules_outside.append('({}, {})'.format(' && '.join(conds_out), target_out))
+
+    for n in nats_inside:
+        nat_match(n)
+    for n in nats_outside:
+        nat_match(n, outside=True)
+
+    # output nats
+    output += 'CHAIN InN ACCEPT:\n'
+    output += '\n'.join(rules_inside)
+    output += '\n(true, ACCEPT)\n\n'
+
+    output += 'CHAIN OutN ACCEPT:\n'
+    output += '\n'.join(rules_outside)
+    output += '\n(true, ACCEPT)\n\n'
+
+    # ACLs
     for name, acl in acls.items():
         if name in used_acls:
-            output += "CHAIN ACL_{}:\n".format(name)
+            output += "CHAIN ACL_{} DROP:\n".format(name)
             for rule in acl:
                 output += str(rule) + "\n"
             output += "(true, DROP)\n\n"
 
     return output
+
+################################################################################
+# TESTS
+
+
+if __name__ == '__main__':
+    import fwsynthesizer
+    converter = fwsynthesizer.converter(
+        parser=parse_file,
+        converter=lambda x,_: convert_file(*x)
+    )
+
+    contents = open('../../examples/cisco/cisco_ok.txt').read()
+
+    print converter(contents=contents, interfaces=None)
+
+    p = parse_file(contents)
+    print p

@@ -15,19 +15,21 @@ import Foreign.C
     ( CInt(..),
       CDouble(..),
       CChar(..),
+      CLLong(..),
       castCharToCChar,
       castCCharToChar )
 import Foreign.Ptr ( Ptr )
 import Foreign.Marshal.Array ()
 import Foreign.Marshal.Alloc ( free )
 
+import Data.Int ( Int64(..) )
 import Data.List ( intercalate )
 import Control.Monad ( zipWithM, replicateM, ap )
 
 import Debug.Trace
 
 
-data FType = FBool | FChar | FInt | FDouble | FUnit
+data FType = FBool | FChar | FInt | FInt64 | FDouble | FUnit
            | FList FType | FIO FType
            | FStablePtr
            | FUnknown
@@ -43,6 +45,7 @@ __exportInfo ftypes = copyList $ map castCharToCChar typeString
         toTypeString FBool      = "Bool"
         toTypeString FChar      = "Char"
         toTypeString FInt       = "Int"
+        toTypeString FInt64     = "Int64"
         toTypeString FDouble    = "Double"
         toTypeString FUnit      = "Unit"
         toTypeString FStablePtr = "StablePtr"
@@ -54,6 +57,7 @@ fromHaskellType :: Type -> FType
 fromHaskellType (ConT nm) | nm == ''Bool   = FBool
                           | nm == ''Char   = FChar
                           | nm == ''Int    = FInt
+                          | nm == ''Int64  = FInt64
                           | nm == ''Double = FDouble
                           | nm == ''String = FList FChar
                           | otherwise      = FStablePtr
@@ -68,6 +72,7 @@ toForeignType t ret | ret       = [t| IO $(toF t) |]
     where toF FBool               = [t| Bool |]
           toF FChar               = [t| CChar |]
           toF FInt                = [t| CInt |]
+          toF FInt64              = [t| CLLong |]
           toF FDouble             = [t| CDouble |]
           toF (FList t)           = [t| Ptr [$(toF t)] |]
           toF FStablePtr          = [t| Ptr () |]
@@ -93,6 +98,7 @@ fromForeignExp :: FType -> ExpQ -> ExpQ
 fromForeignExp FBool      exp = [| return $ $exp |]
 fromForeignExp FChar      exp = [| return $ castCCharToChar $exp |]
 fromForeignExp FInt       exp = [| return $ fromIntegral $exp |]
+fromForeignExp FInt64     exp = [| return $ fromIntegral $exp |]
 fromForeignExp FDouble    exp = [| return $ realToFrac $exp |]
 fromForeignExp (FList t)  exp = [| peekList $exp >>= mapM (\x -> $(fromForeignExp t [|x|])) |]
 fromForeignExp FStablePtr exp = [| deRefStablePtr $ castPtrToStablePtr $exp |]
@@ -104,6 +110,7 @@ toForeignExp :: FType -> ExpQ -> ExpQ
 toForeignExp FBool      exp = [| return $ $exp |]
 toForeignExp FChar      exp = [| return $ castCharToCChar $exp |]
 toForeignExp FInt       exp = [| return $ fromIntegral $exp |]
+toForeignExp FInt64     exp = [| return $ fromIntegral $exp |]
 toForeignExp FDouble    exp = [| return $ realToFrac $exp |]
 toForeignExp (FList t)  exp = [| mapM (\x -> $(toForeignExp t [|x|])) $exp >>= copyList |]
 toForeignExp FStablePtr exp = [| newStablePtr ($exp) >>= return . castStablePtrToPtr |]

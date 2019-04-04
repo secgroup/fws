@@ -23,7 +23,7 @@ PORTS       = services()
 ACCEPT_CMDS = ['allow', 'accept', 'pass', 'permit']
 DROP_CMDS   = ['deny', 'drop', 'reset']
 KEYWORDS    = ACCEPT_CMDS + DROP_CMDS + ['from', 'to', 'in', 'out', 'log', 'any',
-                                         'via', 'setup', 'keep-state']
+                                         'via', 'setup', 'keep-state', 'mac']
 
 
 def protocol_number(proto):
@@ -57,6 +57,12 @@ ports     = ipfw_negate(sepBy1(port_spec + optional(symbol("-") >> port_spec), s
 
 skip_opt = spaces >> until(' \n') >> spaces.result(None)
 
+# NOTE: mac/mask, mac&mask are not supported.
+# We could add the support simply converting them to intervals before the translation
+# but since they are rarely used it's a future work ;P
+macaddr = symbol('any') ^ regex(
+    '[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}')
+
 @generate
 def ipfw_options():
     established = symbol("established").result(("established", True))
@@ -64,7 +70,10 @@ def ipfw_options():
     interface   = ((alternative("via", "recv", "xmit") + (identifier << spaces))
                    .parsecmap(lambda t: ("interface", t)))
 
-    opts = yield many(interface ^ established ^ direction ^ skip_opt)
+    mac         = (token(regex('(?i)mac')) >> (macaddr << spaces) + macaddr).parsecmap(
+                   lambda (dst_mac, src_mac): ("mac", (src_mac, dst_mac)))
+
+    opts = yield many(interface ^ established ^ direction ^ mac ^ skip_opt)
 
     # Other options are ignored
     preturn ( defaultdict(lambda: None, filter(lambda r: r is not None, opts)) )
@@ -187,9 +196,16 @@ def convert_rule(rule, interfaces, nat_table, prefix):
     if rule.protocol not in ['all', 'ip']:
         append_condition("protocol", "==", rule.protocol, mapper=protocol_number)
 
-    # Supported options: established, in, out, recv, xmit, via
+    # Supported options: established, in, out, recv, xmit, via, mac
     if rule.options['established']:
         append_condition("state", "==", 1)
+
+    if rule.options['mac']:
+        src, dst = rule.options['mac']
+        if src != 'any':
+            append_condition("srcMac", "==", src)
+        if dst !='any':
+            append_condition("dstMac", "==", dst)
 
 
     ext_constraint = lambda var, constraints: "not ({})".format(

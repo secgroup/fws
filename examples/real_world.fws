@@ -1,0 +1,39 @@
+echo "== REAL WORLD EXAMPLE QUERIES =="
+echo ""
+
+# Show elapsed times
+show_time
+
+echo "- Home Router -"
+echo "Connections to the external address are DNATed to 192.168.1.130 on ports 22,80,443,1194"
+
+lede = load_policy(iptables, "real-world/home-router-openwrt-lede/router.rules",
+                             "real-world/home-router-openwrt-lede/interfaces")
+synthesis(lede) in forward where dstIp = 117.195.222.105
+
+echo ""
+echo "- Memphis Testbed -"
+echo "Which hosts can reach the internal testbed network?"
+
+testbed = load_policy(iptables, "real-world/memphis_testbed/iptables-save",
+                                "real-world/memphis_testbed/interfaces")
+synthesis(testbed) in forward where dstIp = 145.30.196.192/27
+
+echo ""
+echo "- veroneau.net -"
+echo "Which hosts of the 91.2036.0.0/16 can reach the web server?"
+
+veroneau = load_policy(iptables, "real-world/veroneau.net/iptables-save",
+                                 "real-world/veroneau.net/interfaces")
+synthesis(veroneau) in input where
+  srcIp = 91.236.0.0/16 and dstPort = 80
+
+echo ""
+echo "- Medium-Sized Company -"
+echo "Which are the hosts the internal network can connect to on port 80?"
+
+msc = load_policy(iptables,
+  "real-world/medium-sized-company/iptables-save.iptables_mainfw_31.01.2016",
+  "real-world/medium-sized-company/interfaces")
+synthesis(msc) in forward/nat where
+  srcIp = 172.16.2.0/24 and dstPort = 80 and protocol = tcp

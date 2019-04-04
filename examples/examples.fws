@@ -1,0 +1,128 @@
+echo "POLICY VERIFICATION"
+echo "==================="
+
+# Display tables in unicode format
+table_style unicode
+#table_style latex
+
+# Load policies
+ipt = load_policy(iptables, "policies/iptables.rules", "policies/interfaces_aliases.conf")
+ipfw = load_policy(ipfw, "policies/ipfw.sh", "policies/interfaces_aliases.conf")
+pf = load_policy(pf, "policies/pf.conf", "policies/interfaces_aliases.conf")
+cisco = load_policy(cisco, "policies/cisco.txt", "policies/cisco_aliases.conf")
+
+echo "[+] ALIASES"
+aliases(ipt)
+
+# Synthesize requirement 1
+echo "[+] REQUIREMENT 1"
+echo "=> Internal Networks (lan0 and lan1) should freely communicate"
+
+echo "+ iptables"
+synthesis(ipt)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+echo "+ ipfw"
+synthesis(ipfw)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+echo "+ pf"
+synthesis(pf)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+echo "+ cisco"
+synthesis(cisco)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+# Synthesize requirement 2
+echo "[+] REQUIREMENT 2"
+echo "=> Connection to Firewall are translated DNAT on web and ssh servers on port 22 and 443"
+
+echo "+ iptables"
+synthesis(ipt)
+ project (srcIp, srcPort, dnatIp, dnatPort, dstIp, dstPort, protocol, state)
+ in forward/nat where
+  dnatIp in (web_server, ssh_server) and state = NEW
+
+echo "+ ipfw"
+synthesis(ipfw)
+ project (srcIp, srcPort, dnatIp, dnatPort, dstIp, dstPort, protocol, state)
+ in forward/nat where
+  dnatIp in (web_server, ssh_server) and state = NEW
+
+echo "+ pf"
+synthesis(pf)
+ project (srcIp, srcPort, dnatIp, dnatPort, dstIp, dstPort, protocol, state)
+ in forward/nat where
+  dnatIp in (web_server, ssh_server) and state = NEW
+
+echo "+ cisco"
+synthesis(cisco)
+ project (srcIp, srcPort, dnatIp, dnatPort, dstIp, dstPort, protocol, state)
+ in all/nat where
+  dnatIp in (web_server, ssh_server) and state = NEW
+
+# Synthesize requirement 3,4
+echo "[+] REQUIREMENT 3,4"
+echo "=> Connections to the internet are allowed only to 80 and 443 and source address is translated to ext_ip"
+
+echo "+ iptables"
+synthesis(ipt)
+ project (srcIp, srcPort, snatIp, dstIp, dstPort, protocol, state)
+ in forward where
+   srcIp = internal and not ( dnatIp = internal ) and state = NEW
+
+echo "+ ipfw"
+synthesis(ipfw)
+ project (srcIp, srcPort, snatIp, dstIp, dstPort, protocol, state)
+ in forward where
+   srcIp = internal and not ( dnatIp = internal ) and state = NEW
+
+echo "+ pf"
+synthesis(pf)
+ project (srcIp, srcPort, snatIp, dstIp, dstPort, protocol, state)
+ in forward where
+   srcIp = internal and not ( dnatIp = internal ) and state = NEW
+
+echo "+ cisco"
+synthesis(cisco)
+ project (srcIp, srcPort, snatIp, dstIp, dstPort, protocol, state)
+ in forward where
+   srcIp = internal and not ( dnatIp = internal ) and state = NEW
+
+# Synthesize requirement 5
+echo "[+] REQUIREMENT 5"
+echo "=> Firewall host (ext_ip) can connect to any host"
+
+echo "+ iptables"
+synthesis(ipt)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in output where srcIp = ext_ip and state = NEW
+
+echo "+ ipfw"
+synthesis(ipfw)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in output where srcIp = ext_ip and state = NEW
+
+echo "+ pf"
+synthesis(pf)
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ in output where srcIp = ext_ip and state = NEW
+
+echo "+ cisco"
+synthesis(cisco) 
+ project (srcIp, srcPort, dstIp, dstPort, protocol, state)
+ where srcIp = ext_ip and state = NEW
+
