@@ -250,26 +250,26 @@ def convert_rule(rule, interfaces, nat_table, prefix):
 
         nat = nat_table[rule.action_target]
         for opt in nat:
-            if opt == 'redirect_port' and isinput:
+            if opt == 'redirect_port' and isinput and prefix == 'in':
                 for option in nat[opt]:
                     proto, (addr, port), port1 = option
                     target = "NAT({}:{}, Id)".format(addr, port.value)
                     rules.append((conditions + ['protocol == {}'.format(protocol_number(proto)),
                                                 'dstPort == {}'.format(port1.value)], target))
 
-            elif opt == 'redirect_addr' and isinput:
+            elif opt == 'redirect_addr' and isinput and prefix == 'in':
                 for option in nat[opt]:
                     addr, addr1 = option
                     target = "NAT({}, Id)".format(addr)
                     rules.append((conditions + ['dstIp == {}'.format(addr1)], target))
 
-            elif opt == 'interface' and isoutput:
+            elif opt == 'interface' and isoutput and prefix == 'out':
                 for option in nat[opt]:
                     ifaddr = interfaces[option][1]
                     target = "NAT(Id, {})".format(ifaddr)
                     rules.append((conditions, target))
 
-            elif opt == 'ip' and isoutput:
+            elif opt == 'ip' and isoutput and prefix == 'out':
                 for option in nat[opt]:
                     target = "NAT(Id, {})".format(option)
                     rules.append((conditions, target))
