@@ -11,6 +11,24 @@ Language-independent Synthesis of Firewall Policies
 * `pip` tool for installing Python packages, version >= 9.0.1
 
 ### Installation
+
+#### Docker Hub
+Run `fws` using docker
+```
+docker run --rm -ti -v `pwd`:/mnt wert310/fws
+```
+
+#### Docker Build
+Build the docker image
+```
+docker build -t wert310/fws .
+```
+And run it
+```
+docker run --rm -ti -v `pwd`:/mnt wert310/fws
+```
+
+#### Manual Installation
 Install the required packages
 ```
 sudo apt install z3 libz3-dev ghc cabal-install python-pip python-virtualenv
