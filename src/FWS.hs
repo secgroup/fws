@@ -416,9 +416,9 @@ policyEquivalence fw fw' queryStr locals locsrc locdst = do
 -- | Synthesize the difference between two firewalls
 synthesizeDiff :: Ord t => Firewall t -> Firewall t -> String
                -> [Integer] ->  LocalFlag -> LocalFlag -> IO ([MRule], [MRule])
-synthesizeDiff fw fw' queryStr locals locsrc locdst = evalZ3Model$ do
-  rules  <- concat <$> extract fw
-  rules' <- concat <$> extract fw'
+synthesizeDiff fw fw' queryStr locals locsrc locdst = do
+  rules  <- evalZ3Model $ concat <$> extract fw
+  rules' <- evalZ3Model $ concat <$> extract fw'
   let plusDiff  = getDiffs rules' rules
   let minusDiff = getDiffs rules rules'
   return (plusDiff, minusDiff)
