@@ -122,7 +122,8 @@ class TableStyle(FWSCmd, namedtuple('TableStyle', ['style'])):
     def eval(self, fws):
         if not self.style in [fwsynthesizer.TableStyle.UNICODE,
                               fwsynthesizer.TableStyle.ASCII,
-                              fwsynthesizer.TableStyle.TEX]:
+                              fwsynthesizer.TableStyle.TEX,
+                              fwsynthesizer.TableStyle.HTML]:
             raise UnknownTableStyle(self.style)
         fws.table_style = self.style
 
@@ -529,6 +530,9 @@ class FWSRepl(object):
     def eval_file(self, path):
         "Parse and evaluate an entire fws script"
         contents = open(path).read()
+        self.eval_string(contents)
+
+    def eval_string(self, contents):
         commands = many1(fws_command << many(space|endl)).parse_strict(contents)
         for cmd in commands:
             try:

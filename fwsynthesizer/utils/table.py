@@ -89,6 +89,8 @@ class Table(object):
     def render(self):
         if self.style == 'latex':
             return self._render_latex()
+        elif self.style == 'html':
+            return self._render_html()
         return self._render_ascii()
 
     def _render_latex(self):
@@ -105,6 +107,18 @@ class Table(object):
                                for row in rg.rows())
             out += '\\\\ \\hline'
         out += '\\end{tabular}'
+        return out
+
+    def _render_html(self):
+        out = ''
+        out += '<table class="fws-table">'
+        out += '<thead><tr>'+ ''.join('<td><b>{}</b></td>'.format(title) for title in self.apply_projection(self.header)) +'</tr></thead>'
+        for i, rg in enumerate(self.row_groups):
+            out += '<tbody class="fws-row-group rg-{}">'.format(i)
+            for row in rg.rows():
+                out += '<tr>' + ''.join('<td>{}</td>'.format(s) for s in self.apply_projection(row)) + '</tr>'
+            out += '</tbody>'
+        out += '</table>'
         return out
 
     def _render_ascii(self):

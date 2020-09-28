@@ -11,6 +11,9 @@ from synthesis import *
 from utils import *
 
 import synthesis.query as ui
+import web
+
+import sys
 
 from compile import *
 
@@ -21,12 +24,20 @@ def main():
     parser = argparse.ArgumentParser(
         description="FireWall Synthesizer - Language-independent Synthesis of Firewall Policies")
 
+    parser.add_argument("-m","--mode", help="FWS mode (web, cli), default=web", required=False, default="web")
     parser.add_argument("script", metavar="SCRIPT",
-                        help="FWS Script", nargs='?')
+                        help="FWS Script (cli mode)", nargs='?')
     args = parser.parse_args()
 
-    terp = ui.FWSRepl()
-    if args.script:
-        terp.eval_file(args.script)
+    if args.mode == "web":
+        web.start_app(host="0.0.0.0")
+    elif args.mode == "cli":
+
+        terp = ui.FWSRepl()
+        if args.script:
+            terp.eval_file(args.script)
+        else:
+            terp.repl()
     else:
-        terp.repl()
+        print("fws: error: invalid mode!")
+        sys.exit(1)
