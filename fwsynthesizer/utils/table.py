@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
+
 ################################################################################
 ## GLOBALS
 
@@ -91,6 +93,8 @@ class Table(object):
             return self._render_latex()
         elif self.style == 'html':
             return self._render_html()
+        elif self.style == 'json':
+            return self._render_json()
         return self._render_ascii()
 
     def _render_latex(self):
@@ -120,6 +124,22 @@ class Table(object):
             out += '</tbody>'
         out += '</table>'
         return out
+
+    def _render_json(self):
+        fields,field_names = zip(*self.apply_projection(self.fields))
+        table = []
+        for i, rg in enumerate(self.row_groups):
+            # Every row group is a single object
+            outrow = {f: "" for f in fields}
+            for row in rg.rows():
+                for f,s in zip(fields, self.apply_projection(row)):
+                    outrow[f] += '{}\n'.format(s)
+                for f in fields:
+                    outrow[f] = outrow[f].strip()
+            table.append(outrow)
+
+        out = {'fields': fields, 'field_names': field_names, 'table': table}
+        return json.dumps(out)
 
     def _render_ascii(self):
         out = ''

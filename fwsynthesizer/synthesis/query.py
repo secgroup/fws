@@ -123,7 +123,8 @@ class TableStyle(FWSCmd, namedtuple('TableStyle', ['style'])):
         if not self.style in [fwsynthesizer.TableStyle.UNICODE,
                               fwsynthesizer.TableStyle.ASCII,
                               fwsynthesizer.TableStyle.TEX,
-                              fwsynthesizer.TableStyle.HTML]:
+                              fwsynthesizer.TableStyle.HTML,
+                              fwsynthesizer.TableStyle.JSON]:
             raise UnknownTableStyle(self.style)
         fws.table_style = self.style
 

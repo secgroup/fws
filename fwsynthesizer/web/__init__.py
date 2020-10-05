@@ -140,15 +140,7 @@ def eval_string(interpreter):
         
     return Response(generate(), mimetype='text/html')
             
-    
-    
-@app.route('/<int:interpreter>/compiler/synthesize', methods=['POST'])
-def synthesize_policy(interpreter):
-    args = request.json
-    terp = active_interpreters[interpreter]
-    policy = args["policy"]
-    # TODO
-
+ 
 @app.route('/compiler/translate', methods=['POST'])
 def translate_tables():
     args = request.json

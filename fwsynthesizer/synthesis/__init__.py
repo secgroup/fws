@@ -16,7 +16,7 @@ Any_tag = [[0, 65535]]
 
 LocalFlag  = utils.enum('BOTH', 'LOCAL', 'NOLOCAL')
 NatFlag    = utils.enum('ALL', 'FILTER', 'NAT')
-TableStyle = utils.enum(UNICODE='unicode', ASCII='ascii', TEX='latex', HTML='html')
+TableStyle = utils.enum(UNICODE='unicode', ASCII='ascii', TEX='latex', HTML='html', JSON='json')
 
 
 class Firewall:

@@ -10,17 +10,17 @@
     </template>
     <template slot="start">
       <b-tabs class="navbar-item" type="is-toggle" v-model="current_mode_idx">
-        
+
         <b-tab-item icon="search" label="Query"></b-tab-item>
         <b-tab-item icon="cog" label="Compiler"></b-tab-item>
       </b-tabs>
     </template>
-    
+
     <template slot="end">
       <b-navbar-item tag="div">
         <div class="buttons">
           <b-button icon-left="play" type="is-primary" v-if="getCurrentMode() == 'query'" @click="queryRun" :disabled="isWorking">Run</b-button>
-          
+
           <b-button icon-left="save" type="is-primary" v-if="getCurrentMode() == 'compiler'" disabled>Save</b-button>
           <b-button icon-left="folder-open" type="is-primary" v-if="getCurrentMode() == 'compiler'">Load</b-button>
           <b-button icon-left="cogs" type="is-primary" v-if="getCurrentMode() == 'compiler'" disabled>Compile</b-button>
@@ -38,14 +38,14 @@
           <p class="panel-heading">
             Policies
           </p>
-         
+
           <div class="panel-block">
             <b-button icon-left="folder-open" class="button is-link is-outlined is-fullwidth" @click="loadPolicy">
               Load Policy
             </b-button>
           </div>
 
-          <a class="panel-block" v-for="item in loaded_policies" :key="item">
+          <a class="panel-block" v-for="item in loaded_policies" @click="compilerSynthesize(item)" :key="item">
             <span class="panel-icon">
               <i class="fa fa-file" aria-hidden="true"></i>
             </span> {{ item }}
@@ -56,18 +56,21 @@
             No results
           </div>
 
-          
+
        </div>
-      
+
      </template>
      <template slot="paneR">
 
        <div class="fullheight" v-if="getCurrentMode() == 'compiler'">
 
-         
+
 
          <div class="fullheight">
            <div class="container mt-5 pt-5">
+
+             <p v-if="isWorking && query_progress > 0">Sythesizing policy...</p>
+             <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking && query_progress > 0"></b-progress>
 
              <table class="fws-table singleline">
                <thead><tr>
@@ -101,11 +104,12 @@
              </table>
 
              <p style="font-face: monospace" class="mb-4">{{ fwstable }}</p>
-             
+             <p style="font-face: monospace" class="mb-4">{{ fwspolicy }}</p>
+
            </div>
          </div>
-         
-         
+
+
          <div class="empty-output" v-if=false> <!-- TODO v-if="no-output" -->
            <b-message has-icon icon="info" class="empty-output-message" >
                <p><b>No output.</b></p>
@@ -119,7 +123,7 @@
              </b-message>
          </div>
        </div>
-       
+
        <split-pane :min-percent='20'  v-on:resize="resize" :default-percent='40'  split="vertical"  v-if="getCurrentMode() == 'query'">
          <template slot="paneL">
            <MonacoEditor class="editor mt-2" style="height: calc(100% - 2.00rem)" theme="vs" v-model="query_code" language="sql" @editorDidMount="editorDidMount" :options="monaco_options"></MonacoEditor>
@@ -129,10 +133,11 @@
            <div class="fullheight" style="height: 100%; overflow: scroll;" ref="queryOutputContainer" v-if="query_progress">
              <div class="container">
                <pre v-html="query_output" style="background: white; overflow-x: unset;"></pre>
-               <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking "></b-progress>
+               <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking && query_progress > 0.1"></b-progress>
+               <b-progress class="mt-3 ml-3 mr-3 mb-5" v-if="isWorking && query_progress <= 0.1"></b-progress>
              </div>
          </div>
-           
+
            <div class="empty-output" v-if="!query_progress">
              <b-message has-icon icon="info" class="empty-output-message" >
                <p><b>No output.</b></p>
@@ -145,18 +150,18 @@
                </ol>
              </b-message>
            </div>
-           
+
          </template>
        </split-pane>
 
-       
+
      </template>
    </split-pane>
   </div>
-  
+
   <div class="navbar is-primary statusbar">
     <span v-if=isWorking> <b-icon pack="fa" icon="sync" custom-class="fa-spin" /> [FWS:{{ fws_instance }}] working... </span>
-    <span v-else> <b-icon pack="fa" icon="check-circle"/> [FWS:{{ fws_instance }}] ready </span>
+    <span v-else> <span @click=initRepl()><b-icon pack="fa" icon="check-circle"/></span> [FWS:{{ fws_instance }}] ready </span>
   </div>
 
 </div>
@@ -200,7 +205,7 @@ export default {
         queryRun() {
             this.isWorking = true;
             this.query_progress = 0.1
-            fetch(`${FWS_URI}/${this.fws_instance}/eval`, {
+            return fetch(`${FWS_URI}/${this.fws_instance}/eval`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -212,8 +217,8 @@ export default {
                 let reader = response.body.getReader()
                 const decoder = new TextDecoder()
                 let progress_regex = new RegExp('\\rSolving: \\[#* *\\] \\( *\\d+/ *\\d+\\) ([0-9\\.]+)%\\r', 'g')
-                let partial_bar = new RegExp('\\rSolving:.*', 'g')
-                
+                let partial_bar = new RegExp('\\rSolving:.*|\\r.*', 'g')
+
                 let output = ""
                 for (;;) {
                     const { value, done } = await reader.read()
@@ -228,27 +233,54 @@ export default {
                         output = output.replaceAll(progress_regex, '')
                     }
                     this.query_output = output.replaceAll(partial_bar)
-                    this.$refs.queryOutputContainer.scrollTo(0, this.$refs.queryOutputContainer.children[0].offsetHeight)
+                    if (this.getCurrentMode() == 'query')
+                        this.$refs.queryOutputContainer.scrollTo(0, this.$refs.queryOutputContainer.children[0].offsetHeight)
                 }
                 this.query_output = output
-                this.$refs.queryOutputContainer.scrollTo(0, this.$refs.queryOutputContainer.children[0].offsetHeight)
+                if (this.getCurrentMode() == 'query')
+                    this.$refs.queryOutputContainer.scrollTo(0, this.$refs.queryOutputContainer.children[0].offsetHeight)
                 this.isWorking = false;
             }).catch(e => {this.showError(e); this.isWorking = false})
         },
+        compilerSynthesize(policy) {
+            if (this.getCurrentMode() != 'compiler') return
+            var query_code_backup = this.query_code
+            this.query_code = `table_style json\nsynthesis(${policy})\n`
+            this.queryRun().then(() => {
+                const sregex = /FORWARD\n\n(\{.*\})\n?(\{.*\}?)\n\nINPUT\n\n(\{.*\})(\n\{.*\})?\n\nOUTPUT\n\n(\{.*\})(\n\{.*\})?\n\nLOOPBACK\n\n(\{.*\})(\n\{.*\})?/
+                console.log(this.query_output)
+                const match = this.query_output.match(sregex)
+                if (!match)
+                    this.showError(this.query_output.replaceAll("<", "&lt;"))
+                else {
+                    this.fwspolicy = {
+                        'forward': {'filter': JSON.parse(match[1]), 'nat': match[2] ? JSON.parse(match[2]) : {}},
+                        'input': {'filter': JSON.parse(match[3]), 'nat': match[4] ? JSON.parse(match[2]) : {}},
+                        'output': {'filter': JSON.parse(match[5]), 'nat': match[6] ? JSON.parse(match[2]) : {}} ,
+                        'loopback': {'filter': JSON.parse(match[7]), 'nat': match[8] ? JSON.parse(match[2]) : {}},
+                    }
+                }
+                this.query_code = query_code_backup
+                this.query_output = ''
+            });
+        },
         loadPolicy() {
             this.showError("Not Implemented!")
+        },
+        initRepl() {
+            fetch(`${FWS_URI}/new_repl`).then(b => b.json())
+                .then(res => {
+                    console.log(res)
+                    this.fws_instance = res['value']
+                    this.isWorking = false;
+                }).catch(this.showError)
         }
     },
 
     mounted() {
-        fetch(`${FWS_URI}/new_repl`).then(b => b.json())
-            .then(res => {
-                console.log(res)
-                this.fws_instance = res['value']
-                this.isWorking = false;
-            }).catch(this.showError)
+        this.initRepl()
     },
-    
+
     data() {
         return {
             current_mode_idx: 0,
@@ -264,15 +296,16 @@ export default {
                 wordWrap: true,
             },
             editor: null,
-            loaded_policies: [],
+            loaded_policies: ['p'],
             isWorking: true,
             fws_instance: null,
             query_code: `p = load_policy(iptables, "examples/policies/iptables.rules", "examples/policies/interfaces_aliases.conf")
 
-synthesis(p) in forward/filter 
+synthesis(p) in forward/filter
 `,
             query_output: "",
             query_progress: 0,
+            fwspolicy: {},
             fwstable: [
                 {srcIp: "* \\ { \n  10.0.0.0/16\n  192.168.0.0/16 \n}", srcPort: "*", dstIp: "web_server\nssh_server", dstPort: "443", srcMAC: "*", dstMAC: "*", protocol: "tcp", state: "NEW"},
                 {srcIp: "*", srcPort: "*", dstIp: "web_server\nssh_server", dstPort: "443", srcMAC: "*", dstMAC: "*", protocol: "tcp", state: "NEW"},
@@ -358,11 +391,11 @@ synthesis(p) in forward/filter
 }
 
 .fws-table tbody.fws-row-group {
-  border-bottom: 1px solid black; 
+  border-bottom: 1px solid black;
 }
 
 .fws-table.singleline td {
-  border-bottom: 1px solid black; 
+  border-bottom: 1px solid black;
 }
 
 .fws-table td span:focus {
