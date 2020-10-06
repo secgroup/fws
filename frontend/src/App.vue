@@ -11,8 +11,8 @@
     <template slot="start">
       <b-tabs class="navbar-item" type="is-toggle" v-model="current_mode_idx">
 
-        <b-tab-item icon="search" label="Query"></b-tab-item>
-        <b-tab-item icon="cog" label="Compiler"></b-tab-item>
+        <b-tab-item icon="search" label="Query" :disabled="isWorking"></b-tab-item>
+        <b-tab-item icon="cog" label="Compiler" :disabled="isWorking"></b-tab-item>
       </b-tabs>
     </template>
 
@@ -21,9 +21,9 @@
         <div class="buttons">
           <b-button icon-left="play" type="is-primary" v-if="getCurrentMode() == 'query'" @click="queryRun" :disabled="isWorking">Run</b-button>
 
-          <b-button icon-left="save" type="is-primary" v-if="getCurrentMode() == 'compiler'" disabled>Save</b-button>
-          <b-button icon-left="folder-open" type="is-primary" v-if="getCurrentMode() == 'compiler'">Load</b-button>
-          <b-button icon-left="cogs" type="is-primary" v-if="getCurrentMode() == 'compiler'" disabled>Compile</b-button>
+          <b-button icon-left="save" type="is-primary" v-if="getCurrentMode() == 'compiler'" :disabled='Object.keys(fwspolicy).length == 0' @click="compilerSave">Save</b-button>
+          <b-button icon-left="folder-open" type="is-primary" v-if="getCurrentMode() == 'compiler'" @click="compilerLoad">Load</b-button>
+          <b-button icon-left="cogs" type="is-primary" v-if="getCurrentMode() == 'compiler'" :disabled='Object.keys(fwspolicy).length == 0' @click="compilerCompile">Compile</b-button>
         </div>
       </b-navbar-item>
     </template>
@@ -64,53 +64,68 @@
 
        <div class="fullheight" v-if="getCurrentMode() == 'compiler'">
 
+         <div class="fullheight" style="overflow: scroll;" v-if="Object.keys(fwspolicy).length || query_progress > 0">
+           <div class="mt-5 ml-5 mr-5 mb-5 pt-5 pb-5 pl-5 pr-5">
 
-
-         <div class="fullheight">
-           <div class="container mt-5 pt-5">
-
-             <p v-if="isWorking && query_progress > 0">Sythesizing policy...</p>
+             <h1 v-if="isWorking && query_progress > 0" class="is-size-6 has-text-centered has-text-weight-bold is-family-monospace">Synthesizing policy...</h1>
              <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking && query_progress > 0"></b-progress>
 
-             <table class="fws-table singleline">
-               <thead><tr>
-                   <td><b>Source IP</b></td><td><b>Source Port</b></td>
-                   <!--<td><b>SNAT IP</b></td><td><b>SNAT Port</b></td><td><b>DNAT IP</b></td><td><b>DNAT Port</b>-->
-                   <td><b>Destination IP</b></td><td><b>Destination Port</b></td>
-                   <td><b>Source MAC</b></td><td><b>Destination MAC</b></td>
-                   <td><b>Protocol</b></td><td><b>State</b></td>
-                   <td>
-                     <b-icon pack="fa" icon="wrench" class="has-text-grey-light"/>
-                     <b-tooltip label="Add Row">
-                       <span class="fa fa-plus-circle"></span>
-                     </b-tooltip>
-                   </td>
-               </tr></thead>
-               <tr v-for="(field,index) in fwstable" v-bind:key="index">
-                   <td><contenteditable :value="p2h(field.srcIp)"    @update:value="v => field.srcIp    = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.srcPort)"  @update:value="v => field.srcPort  = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.dstIp)"    @update:value="v => field.dstIp    = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.dstPort)"  @update:value="v => field.dstPort  = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.srcMAC)"   @update:value="v => field.srcMAC   = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.dstMAC)"   @update:value="v => field.dstMAC   = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.protocol)" @update:value="v => field.protocol = h2p(v)" /></td>
-                   <td><contenteditable :value="p2h(field.state)"    @update:value="v => field.state    = h2p(v)" /></td>
+             <div v-for="mode in Object.keys(fwspolicy)" v-bind:key="mode">
+               <h1 class="is-size-5 has-text-weight-bold is-family-monospace">{{ mode.toUpperCase() }}</h1>
+
+                <table class="fws-table singleline" v-if="mode == 'aliases'">
+                 <thead>
+                   <tr>
+                     <td v-for="field in ['Name', 'Address']" v-bind:key="field"><b>{{ field }}</b></td>
+                     <td>
+                       <b-icon pack="fa" icon="wrench" class="has-text-grey-light"/>
+                       <b-tooltip label="Add Row">
+                         <span class="fa fa-plus-circle" @click="fwspolicy.aliases.push(['---', '----'])"></span>
+                       </b-tooltip>
+                     </td>
+                   </tr>
+                 </thead>
+
+                 <tr v-for="(alias,index) in fwspolicy.aliases" v-bind:key="index">
+                   <td><contenteditable :value.sync="alias[0]"/></td>
+                   <td><contenteditable :value.sync="alias[1]"/></td>
                    <td style="text-align:center; vertical-align: middle; background: #f5f5f5;">
                      <b-tooltip label="Delete Row">
-                         <span class="fa fa-times-circle" @click="fwstable.splice(index,1)"></span>
+                       <span class="fa fa-times-circle" @click="fwspolicy.aliases.splice(index,1)"></span>
                      </b-tooltip>
                    </td>
                  </tr>
-             </table>
+               </table>
 
-             <p style="font-face: monospace" class="mb-4">{{ fwstable }}</p>
-             <p style="font-face: monospace" class="mb-4">{{ fwspolicy }}</p>
+               <table class="fws-table singleline" v-for="tab in fwspolicy[mode]" v-bind:key="tab" v-else>
+                 <thead>
+                   <tr>
+                     <td v-for="field in tab.field_names" v-bind:key="field"><b>{{ field }}</b></td>
+                     <td>
+                       <b-icon pack="fa" icon="wrench" class="has-text-grey-light"/>
+                       <b-tooltip label="Add Row">
+                         <span class="fa fa-plus-circle" @click="tab.table.push(Object.fromEntries( tab.fields.map(x => [x, '*']) ))"></span>
+                       </b-tooltip>
+                     </td>
+                   </tr>
+                 </thead>
+
+                 <tr v-for="(row,index) in tab.table" v-bind:key="index">
+                   <td v-for="field in tab.fields" v-bind:key="field"><contenteditable :value="p2h(row[field])" @update:value="v => row[field] = h2p(v)" /></td>
+                   <td style="text-align:center; vertical-align: middle; background: #f5f5f5;">
+                     <b-tooltip label="Delete Row">
+                       <span class="fa fa-times-circle" @click="tab.table.splice(index,1)"></span>
+                     </b-tooltip>
+                   </td>
+                 </tr>
+
+               </table>
+             </div>
 
            </div>
          </div>
 
-
-         <div class="empty-output" v-if=false> <!-- TODO v-if="no-output" -->
+         <div class="empty-output" v-if="Object.keys(fwspolicy).length == 0 && query_progress == 0">
            <b-message has-icon icon="info" class="empty-output-message" >
                <p><b>No output.</b></p>
                <p>Help:</p>
@@ -130,7 +145,7 @@
          </template>
          <template slot="paneR">
 
-           <div class="fullheight" style="height: 100%; overflow: scroll;" ref="queryOutputContainer" v-if="query_progress">
+           <div class="fullheight" style="overflow: scroll;" ref="queryOutputContainer" v-if="query_progress || query_output">
              <div class="container">
                <pre v-html="query_output" style="background: white; overflow-x: unset;"></pre>
                <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking && query_progress > 0.1"></b-progress>
@@ -138,7 +153,7 @@
              </div>
          </div>
 
-           <div class="empty-output" v-if="!query_progress">
+           <div class="empty-output" v-if="!query_progress && !query_output">
              <b-message has-icon icon="info" class="empty-output-message" >
                <p><b>No output.</b></p>
                <p>Help:</p>
@@ -240,30 +255,37 @@ export default {
                 if (this.getCurrentMode() == 'query')
                     this.$refs.queryOutputContainer.scrollTo(0, this.$refs.queryOutputContainer.children[0].offsetHeight)
                 this.isWorking = false;
-            }).catch(e => {this.showError(e); this.isWorking = false})
+                this.query_progress = 0;
+            }).catch(e => {this.showError(e); this.isWorking = false; this.query_progress = 0;})
         },
         compilerSynthesize(policy) {
             if (this.getCurrentMode() != 'compiler') return
+            this.fwspolicy = {}
             var query_code_backup = this.query_code
-            this.query_code = `table_style json\nsynthesis(${policy})\n`
+            this.query_code = `table_style json\naliases(${policy})\nsynthesis(${policy})\n`
             this.queryRun().then(() => {
                 const sregex = /FORWARD\n\n(\{.*\})\n?(\{.*\}?)\n\nINPUT\n\n(\{.*\})(\n\{.*\})?\n\nOUTPUT\n\n(\{.*\})(\n\{.*\})?\n\nLOOPBACK\n\n(\{.*\})(\n\{.*\})?/
+                const aregex = /([a-zA-Z0-9_-]+): ([0-9./]+)/g
                 console.log(this.query_output)
                 const match = this.query_output.match(sregex)
                 if (!match)
                     this.showError(this.query_output.replaceAll("<", "&lt;"))
                 else {
                     this.fwspolicy = {
-                        'forward': {'filter': JSON.parse(match[1]), 'nat': match[2] ? JSON.parse(match[2]) : {}},
-                        'input': {'filter': JSON.parse(match[3]), 'nat': match[4] ? JSON.parse(match[2]) : {}},
-                        'output': {'filter': JSON.parse(match[5]), 'nat': match[6] ? JSON.parse(match[2]) : {}} ,
-                        'loopback': {'filter': JSON.parse(match[7]), 'nat': match[8] ? JSON.parse(match[2]) : {}},
+                        'aliases':  [...this.query_output.matchAll(aregex)].map(x => [x[1], x[2]]),
+                        'forward':  Array.prototype.concat([JSON.parse(match[1])], (match[2] ? [JSON.parse(match[2])] : [])),
+                        'input':    Array.prototype.concat([JSON.parse(match[3])], (match[4] ? [JSON.parse(match[4])] : [])),
+                        'output':   Array.prototype.concat([JSON.parse(match[5])], (match[6] ? [JSON.parse(match[6])] : [])),
+                        'loopback': Array.prototype.concat([JSON.parse(match[7])], (match[8] ? [JSON.parse(match[8])] : []))
                     }
                 }
                 this.query_code = query_code_backup
                 this.query_output = ''
             });
         },
+        compilerLoad(){},
+        compilerSave(){},
+        compilerCompile(){},
         loadPolicy() {
             this.showError("Not Implemented!")
         },
@@ -296,13 +318,10 @@ export default {
                 wordWrap: true,
             },
             editor: null,
-            loaded_policies: ['p'],
+            loaded_policies: [],
             isWorking: true,
             fws_instance: null,
-            query_code: `p = load_policy(iptables, "examples/policies/iptables.rules", "examples/policies/interfaces_aliases.conf")
-
-synthesis(p) in forward/filter
-`,
+            query_code: "",
             query_output: "",
             query_progress: 0,
             fwspolicy: {},
@@ -318,7 +337,7 @@ synthesis(p) in forward/filter
 <style>
 .components-container {
   position: relative;
-  height: calc( 100vh - 3.75rem - 1.8rem );
+  height: calc( 100vh - 3.75rem - 1.7rem );
 }
 .splitter-pane-resizer {
   background: none !important;
@@ -342,7 +361,7 @@ synthesis(p) in forward/filter
 }
 
 .fullheight {
-  height:101%;
+  height:100%;
 }
 
 .empty-output {

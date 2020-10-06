@@ -134,8 +134,8 @@ class Table(object):
             for row in rg.rows():
                 for f,s in zip(fields, self.apply_projection(row)):
                     outrow[f] += '{}\n'.format(s)
-                for f in fields:
-                    outrow[f] = outrow[f].strip()
+                # for f in fields:
+                #     outrow[f] = outrow[f].strip()
             table.append(outrow)
 
         out = {'fields': fields, 'field_names': field_names, 'table': table}
