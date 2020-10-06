@@ -144,7 +144,12 @@ def eval_string(interpreter):
 @app.route('/compiler/translate', methods=['POST'])
 def translate_tables():
     args = request.json
+    target = args['target']
+    fwspolicy = args['fwspolicy']
+
     # TODO
+    
+    return jsonify({'value': None})
 
 
 def start_app(host="localhost", port="5095"):

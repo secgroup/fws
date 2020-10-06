@@ -22,8 +22,19 @@
           <b-button icon-left="play" type="is-primary" v-if="getCurrentMode() == 'query'" @click="queryRun" :disabled="isWorking">Run</b-button>
 
           <b-button icon-left="save" type="is-primary" v-if="getCurrentMode() == 'compiler'" :disabled='Object.keys(fwspolicy).length == 0' @click="compilerSave">Save</b-button>
-          <b-button icon-left="folder-open" type="is-primary" v-if="getCurrentMode() == 'compiler'" @click="compilerLoad">Load</b-button>
-          <b-button icon-left="cogs" type="is-primary" v-if="getCurrentMode() == 'compiler'" :disabled='Object.keys(fwspolicy).length == 0' @click="compilerCompile">Compile</b-button>
+          <b-button icon-left="folder-open" type="is-primary" v-if="getCurrentMode() == 'compiler'" @click="modaltrigger.isLoadTableActive=true">Load</b-button>
+
+          <b-dropdown aria-role="list" v-if="getCurrentMode() == 'compiler'" :disabled='Object.keys(fwspolicy).length == 0' >
+            <button class="button is-primary" slot="trigger" slot-scope="{ active }"  type="is-primary">
+              <b-icon pack="fa" icon="cogs"></b-icon>
+              <span>Compile</span>
+              <b-icon pack="fa" :icon="active ? 'angle-up' : 'angle-down'"></b-icon>
+            </button>
+
+            <b-dropdown-item v-for="target in frontends" v-bind:key="target" aria-role="listitem" @click="compilerCompile(target)">{{ target }}</b-dropdown-item>
+        </b-dropdown>
+
+
         </div>
       </b-navbar-item>
     </template>
@@ -40,7 +51,7 @@
           </p>
 
           <div class="panel-block">
-            <b-button icon-left="folder-open" class="button is-link is-outlined is-fullwidth" @click="loadPolicy">
+            <b-button icon-left="folder-open" class="button is-link is-outlined is-fullwidth" @click="modaltrigger.isLoadPolicyActive=true">
               Load Policy
             </b-button>
           </div>
@@ -179,6 +190,112 @@
     <span v-else> <span @click=initRepl()><b-icon pack="fa" icon="check-circle"/></span> [FWS:{{ fws_instance }}] ready </span>
   </div>
 
+<b-modal
+  v-model="modaltrigger.isLoadPolicyActive"
+  has-modal-card
+  trap-focus
+  :destroy-on-hide="false"
+  aria-role="dialog"
+  aria-modal>
+  <form action="">
+    <div class="modal-card" style="">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Load Policy</p>
+        <button
+          type="button"
+          class="delete"
+          @click="modaltrigger.isLoadPolicyActive=false"/>
+      </header>
+      <section class="modal-card-body">
+
+        <b-field label="Name" class="has-text-centered">
+            <b-input v-model="load_policy_data.name"></b-input>
+        </b-field>
+
+        <b-field label="Frontend" class="has-text-centered">
+          <b-select v-model="load_policy_data.frontend" placeholder="Select a name">
+            <option
+              v-for="option in frontends"
+              :value="option"
+              :key="option">
+              {{ option}}
+            </option>
+          </b-select>
+        </b-field>
+
+        <b-field label="Policy" class="has-text-centered">
+          <b-upload  v-model="load_policy_data.policy" class="file-label">
+            <span class="file-cta">
+              <b-icon class="file-icon" icon="upload"></b-icon>
+              <span class="file-label pr-6 pl-6">Click to upload</span>
+            </span>
+            <span class="file-name" v-if="load_policy_data.policy">
+              {{ load_policy_data.policy.name }}
+            </span>
+          </b-upload>
+        </b-field>
+
+        <b-field label="Config File" class="has-text-centered">
+          <b-upload  v-model="load_policy_data.config" class="file-label">
+            <span class="file-cta">
+              <b-icon class="file-icon" icon="upload"></b-icon>
+              <span class="file-label pr-6 pl-6">Click to upload</span>
+            </span>
+            <span class="file-name" v-if="load_policy_data.config">
+              {{ load_policy_data.config.name }}
+            </span>
+          </b-upload>
+        </b-field>
+
+      </section>
+      <footer class="modal-card-foot">
+        <button class="button" type="button" @click="modaltrigger.isLoadPolicyActive=false">Close</button>
+        <button class="button is-primary" @click.prevent="loadPolicy">Load</button>
+      </footer>
+    </div>
+  </form>
+</b-modal>
+
+<b-modal
+  v-model="modaltrigger.isLoadTableActive"
+  has-modal-card
+  trap-focus
+  :destroy-on-hide="false"
+  aria-role="dialog"
+  aria-modal>
+  <form action="">
+    <div class="modal-card" style="">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Load Table File</p>
+        <button
+          type="button"
+          class="delete"
+          @click="modaltrigger.isLoadTableActive=false"/>
+      </header>
+      <section class="modal-card-body">
+
+        <b-field label="Table File" class="has-text-centered">
+          <b-upload  v-model="load_table_file" class="file-label">
+            <span class="file-cta">
+              <b-icon class="file-icon" icon="upload"></b-icon>
+              <span class="file-label pr-6 pl-6">Click to upload</span>
+            </span>
+            <span class="file-name" v-if="load_table_file">
+              {{ load_table_file.name }}
+            </span>
+          </b-upload>
+        </b-field>
+
+
+      </section>
+      <footer class="modal-card-foot">
+        <button class="button" type="button" @click="modaltrigger.isLoadTableActive=false">Close</button>
+        <button class="button is-primary" @click.prevent="compilerLoad">Load</button>
+      </footer>
+    </div>
+  </form>
+</b-modal>
+
 </div>
 </template>
 
@@ -283,11 +400,77 @@ export default {
                 this.query_output = ''
             });
         },
-        compilerLoad(){},
-        compilerSave(){},
-        compilerCompile(){},
-        loadPolicy() {
-            this.showError("Not Implemented!")
+        compilerSave(){
+            const data = JSON.stringify(this.fwspolicy)
+            const blob = new Blob([data], {type: 'text/plain'})
+            const e = document.createEvent('MouseEvents'),
+                  a = document.createElement('a');
+            a.download = `fws_policy_${new Date().toJSON()}.json`;
+            a.href = window.URL.createObjectURL(blob);
+            a.dataset.downloadurl = ['text/json', a.download, a.href].join(':');
+            e.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+            a.dispatchEvent(e);
+        },
+        async compilerLoad() {
+            if (!this.load_table_file)
+                this.showError("Please fill all the fields!")
+            else {
+                try{
+                    const file_text = await this.load_table_file.text()
+                    console.log(file_text)
+                    this.fwspolicy = JSON.parse(file_text)
+                    this.modaltrigger.isLoadTableActive = false
+                } catch (e) {
+                    this.showError(e)
+                }
+            }
+        },
+        compilerCompile(target){
+            this.isWorking = true
+
+            fetch(`${FWS_URI}/compiler/translate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'target': target,
+                        'fwspolicy': JSON.stringify(this.fwspolicy)
+                    })
+                }).then(b => b.json())
+                .then(res => {
+                    console.log(res)
+                    this.isWorking = false
+                    // TODO
+                }).catch(this.showError)
+
+        },
+        async loadPolicy() {
+            const { name, frontend, policy, config } = this.load_policy_data
+            if (!name || !frontend || !policy || !config)
+                this.showError("Please fill all the fields!")
+            else {
+                const policy_text = await policy.text()
+                const conf_text = await config.text()
+                fetch(`${FWS_URI}/${this.fws_instance}/load_policy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'name': name,
+                        'frontend': frontend,
+                        'policy': policy_text,
+                        'conf': conf_text,
+                    })
+                }).then(b => b.json())
+                .then(res => {
+                    console.log(res)
+                    this.loaded_policies.push(res['value'])
+                    this.modaltrigger.isLoadPolicyActive = false
+                }).catch(this.showError)
+            }
+
         },
         initRepl() {
             fetch(`${FWS_URI}/new_repl`).then(b => b.json())
@@ -296,7 +479,13 @@ export default {
                     this.fws_instance = res['value']
                     this.isWorking = false;
                 }).catch(this.showError)
-        }
+            fetch(`${FWS_URI}/frontends`).then(b => b.json())
+                .then(res => {
+                    console.log(res)
+                    this.frontends = res
+                }).catch(this.showError)
+        },
+
     },
 
     mounted() {
@@ -318,17 +507,20 @@ export default {
                 wordWrap: true,
             },
             editor: null,
+            load_policy_data: { name: null, frontend: null, policy: null, config: null },
+            load_table_file: null,
             loaded_policies: [],
             isWorking: true,
+            frontends: [],
             fws_instance: null,
             query_code: "",
             query_output: "",
             query_progress: 0,
             fwspolicy: {},
-            fwstable: [
-                {srcIp: "* \\ { \n  10.0.0.0/16\n  192.168.0.0/16 \n}", srcPort: "*", dstIp: "web_server\nssh_server", dstPort: "443", srcMAC: "*", dstMAC: "*", protocol: "tcp", state: "NEW"},
-                {srcIp: "*", srcPort: "*", dstIp: "web_server\nssh_server", dstPort: "443", srcMAC: "*", dstMAC: "*", protocol: "tcp", state: "NEW"},
-            ]
+            modaltrigger: {
+                isLoadPolicyActive: false,
+                isLoadTableActive: false,
+            },
         };
     }
 }
