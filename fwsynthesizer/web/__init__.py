@@ -7,8 +7,9 @@ from parsec import *
 from fwsynthesizer.parsers.utils import *
 from fwsynthesizer.synthesis.query import *
 
+import os
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, redirect, abort, send_from_directory
 
 from contextlib import contextmanager
 import ctypes
@@ -53,7 +54,7 @@ def stdout_stderr_redirector(fd, fderr):
         os.close(saved_stderr_fd)
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path=os.path.abspath(os.path.join(__file__,'static')))
 
 # This is needed as our trick with fds breaks flask!
 log = logging.getLogger('werkzeug')
@@ -69,9 +70,6 @@ def after_request(response):
     header['Access-Control-Allow-Headers'] = '*'
     return response
 
-@app.route('/')
-def slash():
-    return 'ok'
 
 @app.route('/frontends')
 def list_frontends():
@@ -151,6 +149,15 @@ def translate_tables():
     
     return jsonify({'value': None})
 
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+@app.route('/<folder>/<path:path>')
+def send_js(folder,path):
+    if folder not in ['js', 'fonts', 'css', 'img']:
+        return abort(404)
+    return app.send_static_file(os.path.join(folder, path))
 
 def start_app(host="localhost", port="5095"):
     app.run(

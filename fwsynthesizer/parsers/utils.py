@@ -5,6 +5,7 @@ import argparse
 
 from ipaddr import IPv4Address, IPv4Network
 from fwsynthesizer.utils.ipaddr_ext import IPv4Range
+from fwsynthesizer.utils.macaddr import MACAddress
 
 from parsec import *
 
@@ -147,12 +148,15 @@ addr_regex   = '(:?{0}\.){{3}}{0}'.format(octet_regex)
 subnet_regex = '(:?{0}\.){{3}}{0}\/[0-9]{{1,2}}'.format(octet_regex)
 range_regex  = '{0}\s*-\s*{0}'.format(addr_regex)
 port_regex   = '[0-9]{1,5}'
+mac_regex    = '(:?[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}'
 
 ip_addr       = regex(addr_regex).parsecmap(IPv4Address)
 ip_subnet     = regex(subnet_regex).parsecmap(IPv4Network)
 ip_range      = regex(range_regex).parsecmap(IPv4Range)
 port          = regex(port_regex).parsecmap(Port)
 port_range    = (regex(port_regex) + (string('-') >> regex(port_regex))).parsecmap(lambda p: PortRange(*p))
+mac_addr      = regex(mac_regex).parsecmap(MACAddress)
+
 negate        = (lambda p: (optional(regex("!\s*")) + p)
                  .parsecmap(lambda (n, s): Negate(s) if n else s))
 comment       = symbol("#") >> until_endl

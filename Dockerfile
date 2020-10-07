@@ -1,3 +1,8 @@
+FROM node:13 as builder
+ADD ./frontend /frontend
+WORKDIR /frontend
+RUN npm install && npm run build
+
 FROM ubuntu:18.04
 
 # Deps
@@ -27,6 +32,10 @@ COPY . /FWS
 WORKDIR /FWS
 RUN ./update_libs.sh
 RUN cabal install --global
+
+# Copy frontend data
+COPY --from=builder /frontend/dist /FWS/fwsynthesizer/web/static
+# Install python fws
 RUN python setup.py install
 
 # Entrypoint
