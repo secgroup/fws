@@ -93,7 +93,7 @@ def load_policy(interpreter):
     policy = args["policy"]
     conf = args["conf"]
     try:
-        with tempfile.NamedTemporaryFile() as tmp_policy, tempfile.NamedTemporaryFile() as tmp_config:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_policy, tempfile.NamedTemporaryFile(delete=False) as tmp_config:
             
             tmp_policy.write(args["policy"]); tmp_policy.flush()
             tmp_config.write(args["conf"]); tmp_config.flush()

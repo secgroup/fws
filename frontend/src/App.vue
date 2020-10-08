@@ -466,7 +466,8 @@ export default {
                 }).then(b => b.json())
                 .then(res => {
                     console.log(res)
-                    this.loaded_policies.push(res['value'])
+                    if (this.loaded_policies.indexOf(res['value']) < 0)
+                        this.loaded_policies.push(res['value'])
                     this.modaltrigger.isLoadPolicyActive = false
                 }).catch(this.showError)
             }

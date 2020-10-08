@@ -493,6 +493,7 @@ def replace_aliases(expr, aliases):
                 isinstance(value, IPv4Range) or
                 isinstance(value, Port) or
                 isinstance(value, PortRange) or
+                isinstance(value, MACAddress) or
                 value in ['*', 'NEW', 'ESTABLISHED'] or
                 value in PROTOS)
 
