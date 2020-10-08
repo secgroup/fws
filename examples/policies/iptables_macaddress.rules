@@ -1,0 +1,55 @@
+### NAT rules ###
+*nat
+# Default policy ACCEPT in nat chains
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# Requirement 2: Redirect incoming SSH and HTTPS connections to hosts 10.0.2.15 and 10.0.1.15 (DNAT)
+-A PREROUTING -p tcp ! -s 10.0.0.0/16 -d 172.16.0.254 --dport  22 -j DNAT --to 10.0.2.15
+-A PREROUTING -p tcp ! -s 10.0.0.0/16 -d 172.16.0.254 --dport 443 -j DNAT --to 10.0.1.15
+
+# Requirement 4: Connections towards the Internet exit with source address 172.16.0.254 (SNAT)
+-A POSTROUTING -s 10.0.0.0/16 ! -d 10.0.0.0/16 -j SNAT --to 172.16.0.254
+
+COMMIT
+
+### Filtering rules ###
+*filter
+# Default policy DROP in filtering chains
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# [NEW] Req: 0 Allow the sysadmin PC to reach everything
+-A INPUT -m mac --mac-source 3E:D7:88:A6:66:8E -j ACCEPT
+-A FORWARD -m mac --mac-source 3E:D7:88:A6:66:8E -j ACCEPT
+
+# Allow established packets
+-A FORWARD -m state --state ESTABLISHED -j ACCEPT
+-A INPUT   -m state --state ESTABLISHED -j ACCEPT
+
+# [OLD] Requirement 1: Allow arbitrary traffic between internal networks
+#-A FORWARD -s 10.0.0.0/16 -d 10.0.0.0/16 -j ACCEPT
+
+# [NEW] Requirement 1: Allow only employees addresses to access the web and ssh server from the lan
+-A FORWARD -m mac --mac-source 66:1D:61:58:AB:78 -p tcp -d 10.0.2.15 --dport 22 -j ACCEPT
+-A FORWARD -m mac --mac-source D7:3E:6C:0E:EE:A3 -p tcp -d 10.0.2.15 --dport 22 -j ACCEPT
+-A FORWARD -m mac --mac-source CD:DB:03:6E:E0:93 -p tcp -d 10.0.2.15 --dport 22 -j ACCEPT
+-A FORWARD -m mac --mac-source 66:1D:61:58:AB:78 -p tcp -d 10.0.1.15 --dport 443 -j ACCEPT
+-A FORWARD -m mac --mac-source D7:3E:6C:0E:EE:A3 -p tcp -d 10.0.1.15 --dport 443 -j ACCEPT
+-A FORWARD -m mac --mac-source CD:DB:03:6E:E0:93 -p tcp -d 10.0.1.15 --dport 443 -j ACCEPT
+
+
+# Requirement 3: Allow HTTP/HTTPS outgoing traffic
+-A FORWARD -s 10.0.0.0/16 ! -d 10.0.0.0/16 -p tcp --dport 80  -j ACCEPT
+-A FORWARD -s 10.0.0.0/16 ! -d 10.0.0.0/16 -p tcp --dport 443 -j ACCEPT
+
+# Requirement 2: Allow SSH/HTTPS incoming traffic to the corresponding hosts from the internet (after DNAT)
+-A FORWARD -p tcp ! -s 10.0.0.0/16 -d 10.0.2.15 --dport  22 -j ACCEPT
+-A FORWARD -p tcp ! -s 10.0.0.0/16 -d 10.0.1.15 --dport 443 -j ACCEPT
+
+
+
+COMMIT

@@ -509,7 +509,7 @@ def replace_aliases(expr, aliases):
             values = [ aliases.get(v, v) for v in match.value ]
             for v in values:
                 if not expanded(v):
-                    raise FWSUnboundAliasError(v)
+                    raise UnboundAliasError(v)
             return MatchList(match.variable, values)
         if isinstance(match, QTrue):
             return match

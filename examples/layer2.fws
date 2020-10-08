@@ -1,0 +1,35 @@
+# Load the policy manually in the GUI or execute the following line
+# ipt_mac = load_policy(iptables, "policies/iptables_macaddress.rules", "policies/interface_aliases.conf")
+
+echo "employees: 66:1D:61:58:AB:78, D7:3E:6C:0E:EE:A3, CD:DB:03:6E:E0:93"
+echo ""
+
+echo "[NEW] Req 1: employees can access only web and ssh server"
+
+synthesis(ipt_mac)
+ in forward where
+  ( (srcIp = lan0 and dstIp = lan1) or
+    (srcIp = lan1 and dstIp = lan0) ) and state = NEW
+
+
+echo "[NEW] Req 1: Only The sysadmin(3e:d7:88:a6:66:8e), with any IP, can access the internal net"
+
+# Remove employees and check that only the sysadmin MAC shows up
+
+synthesis(ipt_mac) in forward where 
+not ( 
+    srcMac in (66:1D:61:58:AB:78,
+               D7:3E:6C:0E:EE:A3, 
+               CD:DB:03:6E:E0:93) 
+    ) and srcIp = internal and dstIp = internal and state = NEW
+
+
+echo "[NEW] Req 0: The sysadmin(3e:d7:88:a6:66:8e, 10.0.1.150) can access everything"
+
+synthesis(ipt_mac) 
+where srcMac = 3e:d7:88:a6:66:8e
+  and srcIp = 10.0.1.150
+  and dstIp in (internal, ext_ip)
+
+
+
