@@ -15,11 +15,11 @@ Language-independent Synthesis of Firewall Policies
 #### Docker Hub
 Run `fws` using docker
 
-- web nterface:
+- Web interface:
   ```
   docker run --rm -ti -p 5095:5095 wert310/fws
   ```
-- command line:
+- Command line:
   ```
   docker run --rm -ti -v `pwd`:/mnt wert310/fws -m cli
   ```
@@ -28,10 +28,6 @@ Run `fws` using docker
 Build the docker image
 ```
 docker build -t wert310/fws .
-```
-And run it
-```
-docker run --rm -ti -v `pwd`:/mnt wert310/fws
 ```
 
 #### Manual Installation
@@ -55,7 +51,7 @@ the executable is `fws`.
 #### Policy Analysis
   * Loading a policy
     ```
-    $ fws
+    $ fws -m cli
     FWS> ipt = load_policy(iptables, "examples/policies/iptables.rules", "examples/policies/interfaces_aliases.conf")
     ```
   * Synthesizing the entire specification
@@ -88,7 +84,7 @@ the executable is `fws`.
 
   FWS can be used in non-iteractive mode giving it an fws script as the first command line argument
   ```
-  $ fws script.fws
+  $ fws -m cli script.fws
   ```
 
 #### Policy Verification
@@ -98,7 +94,7 @@ to spot possible differences in the `iptables`, `ipfw` and `pf` configurations.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ fws examples.fws
+$ fws -m cli examples.fws
 ```
 #### Policy Equivalence
 The script `equivalence.fws` in the `examples` directory shows how the equivalence
@@ -107,7 +103,7 @@ are equivalent for the requirements of the firewall.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ fws equivalence.fws
+$ fws -m cli equivalence.fws
 ```
 #### Query Examples
 The script `real_world.fws` in the `examples` directory shows some query examples on real
@@ -115,5 +111,5 @@ policies.
 ```
 $ source venv/bin/activate
 $ cd examples
-$ fws real_world.fws
+$ fws -m cli real_world.fws
 ```
