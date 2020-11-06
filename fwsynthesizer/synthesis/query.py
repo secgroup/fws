@@ -443,7 +443,6 @@ def table_name():
 def term():
     true_ = token_endl(regex('(?i)true')).parsecmap(lambda _: True)
     false_ = token_endl(regex('(?i)false')).parsecmap(lambda _: False)
-    # mac_addr parser does not always match TODO
     value = (mac_addr ^ identifier ^ ip_range ^ ip_subnet ^ ip_addr ^ port_range ^ port)
     assignment = (fields + (sym('=') >> value)).parsecmap(lambda p: Match(*p))
     list_match = (fields + (sym('in') >> list_of(value))).parsecmap(lambda p: MatchList(*p))
