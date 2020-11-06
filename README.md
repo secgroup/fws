@@ -14,9 +14,15 @@ Language-independent Synthesis of Firewall Policies
 
 #### Docker Hub
 Run `fws` using docker
-```
-docker run --rm -ti -v `pwd`:/mnt wert310/fws
-```
+
+- web nterface:
+  ```
+  docker run --rm -ti -p 5095:5095 wert310/fws
+  ```
+- command line:
+  ```
+  docker run --rm -ti -v `pwd`:/mnt wert310/fws -m cli
+  ```
 
 #### Docker Build
 Build the docker image
