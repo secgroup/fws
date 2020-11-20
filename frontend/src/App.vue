@@ -304,7 +304,7 @@ import MonacoEditor from 'vue-monaco'
 import splitPane from 'vue-splitpane'
 import contenteditable from './components/contenteditable.vue'
 
-const FWS_URI = "http://172.17.0.2:5095" // ""
+const FWS_URI = "";
 
 export default {
 
