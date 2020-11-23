@@ -31,7 +31,7 @@
               <b-icon pack="fa" :icon="active ? 'angle-up' : 'angle-down'"></b-icon>
             </button>
 
-            <b-dropdown-item v-for="target in frontends" v-bind:key="target" aria-role="listitem" @click="compilerCompile(target)">{{ target }}</b-dropdown-item>
+            <b-dropdown-item v-for="target in targets" v-bind:key="target" aria-role="listitem" @click="compilerCompile(target)">{{ target }}</b-dropdown-item>
         </b-dropdown>
 
 
@@ -81,7 +81,7 @@
              <h1 v-if="isWorking && query_progress > 0" class="is-size-6 has-text-centered has-text-weight-bold is-family-monospace">Synthesizing policy...</h1>
              <b-progress class="mt-3 ml-3 mr-3 mb-5" :value="query_progress" show-value format="percent" v-if="isWorking && query_progress > 0"></b-progress>
 
-             <div v-for="mode in Object.keys(fwspolicy)" v-bind:key="mode">
+             <div v-for="mode in Object.keys(fwspolicy).filter(n => n != 'locals')" v-bind:key="mode">
                <h1 class="is-size-5 has-text-weight-bold is-family-monospace">{{ mode.toUpperCase() }}</h1>
 
                 <table class="fws-table singleline" v-if="mode == 'aliases'">
@@ -379,16 +379,18 @@ export default {
             if (this.getCurrentMode() != 'compiler') return
             this.fwspolicy = {}
             var query_code_backup = this.query_code
-            this.query_code = `table_style json\naliases(${policy})\nsynthesis(${policy})\n`
+            this.query_code = `table_style json\nlocals(${policy})\naliases(${policy})\nsynthesis(${policy})\n`
             this.queryRun().then(() => {
                 const sregex = /FORWARD\n\n(\{.*\})\n?(\{.*\}?)\n\nINPUT\n\n(\{.*\})(\n\{.*\})?\n\nOUTPUT\n\n(\{.*\})(\n\{.*\})?\n\nLOOPBACK\n\n(\{.*\})(\n\{.*\})?/
                 const aregex = /([a-zA-Z0-9_-]+): ([0-9./]+)/g
+                const lregex = /local ([0-9./]+)/g
                 console.log(this.query_output)
                 const match = this.query_output.match(sregex)
                 if (!match)
                     this.showError(this.query_output.replaceAll("<", "&lt;"))
                 else {
                     this.fwspolicy = {
+                        'locals':   [...this.query_output.matchAll(lregex)].map(x => x[1]),
                         'aliases':  [...this.query_output.matchAll(aregex)].map(x => [x[1], x[2]]),
                         'forward':  Array.prototype.concat([JSON.parse(match[1])], (match[2] ? [JSON.parse(match[2])] : [])),
                         'input':    Array.prototype.concat([JSON.parse(match[3])], (match[4] ? [JSON.parse(match[4])] : [])),
@@ -440,8 +442,15 @@ export default {
                 }).then(b => b.json())
                 .then(res => {
                     console.log(res)
-                    this.isWorking = false
-                    // TODO
+                    const blob = new Blob([res.value], {type: 'text/plain'})
+                    const e = document.createEvent('MouseEvents'),
+                          a = document.createElement('a');
+                    a.download = `${target}_policy_${new Date().toJSON()}.rules`;
+                    a.href = window.URL.createObjectURL(blob);
+                    a.dataset.downloadurl = ['text/plain', a.download, a.href].join(':');
+                    e.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                    a.dispatchEvent(e);
+                    this.isWorking = false;
                 }).catch(this.showError)
 
         },
@@ -485,6 +494,11 @@ export default {
                     console.log(res)
                     this.frontends = res
                 }).catch(this.showError)
+            fetch(`${FWS_URI}/compiler/targets`).then(b => b.json())
+                .then(res => {
+                    console.log(res)
+                    this.targets = res
+                }).catch(this.showError)
         },
 
     },
@@ -513,6 +527,7 @@ export default {
             loaded_policies: [],
             isWorking: true,
             frontends: [],
+            targets: [],
             fws_instance: null,
             query_code: "",
             query_output: "",

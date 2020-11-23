@@ -4,6 +4,7 @@ from compile_iptables import *
 from compile_ipfw import *
 from compile_pf import *
 
+TARGETS = ['iptables', 'ipfw', 'pf']
 
 def fw_compile(semantics, target):
     """

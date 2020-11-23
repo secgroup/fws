@@ -149,6 +149,19 @@ class Packet(object):
     def any_mark(self):
         return self.mark[0][0] == Any_tag[0][0] and self.mark[0][1] == Any_tag[0][1]
 
+    def to_mrule_packet(self):
+        return [ #  srcIp, srcPort, dstIp, dstPort, srcMac, dstMac, protocol, state, mark
+            [ [struct.unpack(">I", ip.packed)[0] for ip in ips] for ips in self.srcIp ],
+            self.srcPort,
+            [ [struct.unpack(">I", ip.packed)[0] for ip in ips] for ips in self.dstIp ],
+            self.dstPort,
+            [ [mac._mac for mac in macs] for macs in self.srcMac ],
+            [ [mac._mac for mac in macs] for macs in self.dstMac ],
+            self.protocol,
+            self.state,
+            self.mark
+        ]
+
 
 class Rule(object):
     "FWS Rule Object"
@@ -178,17 +191,24 @@ class Rule(object):
     def __repr__(self):
         return "#<Rule {} {} {}>".format(self.type, self.packet_in, self.packet_out)
 
+    def to_mrule(self):
+        return [self.packet_in.to_mrule_packet(), self.packet_out.to_mrule_packet()]
+
 
 class SynthesisOutput:
     "Firewall synthesis output"
 
-    def __init__(self, fw, rules):
+    def __init__(self, fw, rules, mrules_precomputed=False):
         self.firewall = fw
         self.__rules = rules
+        self.mrules_precomputed = mrules_precomputed
 
     def get_rules(self):
         "Get the rules as lists of Rule objects"
-        rules = [ Synthesis.mrule_list(r) for r in self.__rules ]
+        if self.mrules_precomputed:
+            rules = self.__rules
+        else:
+            rules = [ Synthesis.mrule_list(r) for r in self.__rules ]
         return [ Rule(Packet(*pin), Packet(*pout)) for pin,pout in rules ]
 
     def print_table(self, table_style=TableStyle.UNICODE, local_src=LocalFlag.BOTH,
@@ -209,12 +229,15 @@ class SynthesisOutput:
         hide_nats = nat == NatFlag.FILTER
         hide_filters = nat == NatFlag.NAT
         table_printer.print_table(
-            rules, table_style, [ipaddr.IPv4Address(a) for a in self.firewall.locals],
+            rules, table_style, [ipaddr.IPv4Address(a) for a in self.firewall.locals] if self.firewall else [],
             hide_src, hide_dst, hide_nats, hide_filters,
             projection, aliases=aliases)
 
     def get_rules_no_duplicates(self):
-        rules = [Synthesis.mrule_list(r) for r in self.__rules]
+        if self.mrules_precomputed:
+            rules = self.__rules
+        else:
+            rules = [Synthesis.mrule_list(r) for r in self.__rules]
 
         for rule in rules:
             for pkt in rule:

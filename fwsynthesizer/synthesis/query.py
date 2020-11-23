@@ -296,6 +296,14 @@ class Aliases(FWSCmd, namedtuple('Aliases', ['p'])):
             print "{}: {}".format(a, aliases[a])
         print
 
+class Locals(FWSCmd, namedtuple('Locals', ['p'])):
+    def eval(self, fws):
+        policy = fws.get_variable(self.p)
+        locals_ = policy.firewall.locals
+        for ip in locals_:
+            print "local {}".format(ip)
+        print
+        
 class Porting(FWSCmd, namedtuple('Porting', ['p', 'target', 'file'])):
     def eval(self, fws):
         policy = fws.get_variable(self.p)
@@ -369,6 +377,7 @@ fields = or_symbol(*NAMES).parsecmap(lambda n: NAMES[n])
 echo = (sym('echo') >> litstr).parsecmap(Echo)
 ifcl = sym('ifcl') >> parens(identifier).parsecmap(lambda p: Ifcl(p))
 aliases = sym('aliases') >> parens(identifier).parsecmap(lambda p: Aliases(p))
+locals_ = sym('locals') >> parens(identifier).parsecmap(lambda p: Locals(p))
 setting = (sym('help').parsecmap(lambda _: Echo(help_message)) ^
            sym('show_time').parsecmap(lambda _: ShowTime()) ^
            sym('verbose_mode').parsecmap(lambda _: VerboseMode()) ^
@@ -423,7 +432,7 @@ def load_policy():
 
 @generate
 def fws_command():
-    cmd = yield ( echo ^ setting ^ aliases ^ porting ^ comparison ^ synthesis ^
+    cmd = yield ( echo ^ setting ^ aliases ^ locals_ ^ porting ^ comparison ^ synthesis ^
                   related ^ ifcl ^ load_policy ^ comment.parsecmap(lambda _: Nop()) ^
                   identifier.parsecmap(lambda n: ShowIdentifier(n)) )
     preturn ( cmd )
