@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 
 GHC_VERSION=$(ghc --numeric-version)

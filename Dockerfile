@@ -9,7 +9,7 @@ FROM ubuntu:18.04
 RUN apt-get update
 RUN apt-get install -y z3 libz3-dev ghc cabal-install python-pip python-virtualenv
 RUN cabal update
-RUN pip install ipaddr parsec textx==1.8.0 Flask
+RUN pip install ipaddr parsec==3.5 textx==1.8.0 Flask
 
 # Haskell libs
 COPY ./lib/z3-haskell /FWSlib/z3-haskell
